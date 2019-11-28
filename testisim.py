@@ -1,7 +1,7 @@
 import logging.config
 import pprint
-from ibmsecurity.appliance.isimapplication import ISIMApplication
-from ibmsecurity.user.isimapplicationuser import ISIMApplicationUser
+from isimws.application.isimapplication import ISIMApplication
+from isimws.user.isimapplicationuser import ISIMApplicationUser
 import pkgutil
 import importlib
 
@@ -25,17 +25,17 @@ def import_submodules(package, recursive=True):
     return results
 
 
-import ibmsecurity
+import isimws
 
 # Import all packages within ibmsecurity - recursively
 # Note: Advisable to replace this code with specific imports for production code
-import_submodules(ibmsecurity)
+import_submodules(isimws)
 
 # Setup logging to send to stdout, format and set log level
 # logging.getLogger(__name__).addHandler(logging.NullHandler())
 logging.basicConfig()
 # Valid values are 'DEBUG', 'INFO', 'ERROR', 'CRITICAL'
-logLevel = 'DEBUG'
+logLevel = 'INFO'
 DEFAULT_LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -68,9 +68,10 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 
 
 # Function to pretty print JSON data
-def p(jdata):
+def pretty_print(jdata):
     pp = pprint.PrettyPrinter(indent=2)
     pp.pprint(jdata)
+
 
 if __name__ == "__main__":
     """
@@ -78,13 +79,30 @@ if __name__ == "__main__":
     cause problems when generating the documentation.
     """
     # Create a user credential for ISAM appliance
-    u = ISIMApplicationUser(username="admin@local", password="admin")
+    u = ISIMApplicationUser(username="itim manager", password="Object00")
     # Create an ISAM appliance with above credential
-    isim_server = ISIMAppliance(hostname="192.168.198.106", user=u, lmi_port=443)
-    #
-    # # Get the current SNMP monitoring setup details
-    # p(ibmsecurity.isam.base.snmp_monitoring.get(isamAppliance=isam_server))
-    # # Set the V2 SNMP monitoring
-    # p(ibmsecurity.isam.base.snmp_monitoring.set_v1v2(isamAppliance=isam_server, community="IBM"))
-    # # Commit or Deploy the changes
-    # p(ibmsecurity.isam.appliance.commit(isamAppliance=isam_server))
+    isim_server = ISIMApplication(hostname="192.168.42.106", user=u, port=9082)
+
+    # Get a container
+    print("Getting a container...")
+    pretty_print(isimws.isim.container.get(isim_application=isim_server, container_dn="erglobalid=00000000000000000000,ou=demo,dc=com"))
+
+    # Create a person
+    print("Creating a person...")
+    pretty_print(isimws.isim.person.create(isim_application=isim_server,
+                                           container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+                                           profile_name="Person",
+                                           username="jblow",
+                                           surname="Blow",
+                                           full_name="Joe Blow",
+                                           aliases=["Jim", "Jack"],
+                                           password="Object99",
+                                           roles=[]))
+
+     #
+     # # Get the current SNMP monitoring setup details
+     # p(ibmsecurity.isam.base.snmp_monitoring.get(isamAppliance=isam_server))
+     # # Set the V2 SNMP monitoring
+     # p(ibmsecurity.isam.base.snmp_monitoring.set_v1v2(isamAppliance=isam_server, community="IBM"))
+     # # Commit or Deploy the changes
+     # p(ibmsecurity.isam.appliance.commit(isamAppliance=isam_server))
