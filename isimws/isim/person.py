@@ -13,6 +13,27 @@ service = "WSPersonService"
 requires_version = None
 
 
+# def get_all(isim_application: ISIMApplication, container_dn: str):
+#     pass
+#
+#
+# def _check(isim_application: ISIMApplication, container_dn: str, username: str):
+#     """
+#     Check if a Person with a certain username exists in a container.
+#     :param isim_application: The ISIMApplication instance to run the check on.
+#     :param container_dn: The ISIM DN of the container to check.
+#     :param username: The username to check for.
+#     :return: True only if a Person with the given username already exists in the given container.
+#     """
+#     ret_obj = get_all(isim_application, container_dn)
+#
+#     for jct in ret_obj['data']:
+#         if jct['id'] == junctionname:
+#             return True
+#
+#     return False
+
+
 def create(isim_application: ISIMApplication,
            container_dn: str,
            profile_name: str,

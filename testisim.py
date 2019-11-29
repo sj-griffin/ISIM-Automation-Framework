@@ -83,26 +83,49 @@ if __name__ == "__main__":
     # Create an ISAM appliance with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
-    # Get a container
-    print("Getting a container...")
-    pretty_print(isimws.isim.container.get(isim_application=isim_server, container_dn="erglobalid=00000000000000000000,ou=demo,dc=com"))
+    # Create a role
+    print("Creating a role...")
+    pretty_print(isimws.isim.role.create(isim_application=isim_server,
+                                         container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+                                         role_classification='application',
+                                         name='test-role',
+                                         description='A role to test the SOAP API',
+                                         role_owners=["erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
+                                         user_owners=["erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
+                                         enable_access=True,
+                                         common_access=False,
+                                         access_type='emailgroup',
+                                         access_image_uri=None,
+                                         access_search_terms=["test", "testing"],
+                                         access_additional_info="Some additional information",
+                                         access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
+                                                        {'text': 'A red badge', 'colour': 'red'}],
+                                         assignment_attributes=['attribute1', 'attribute2']))
 
-    # Create a person
-    print("Creating a person...")
-    pretty_print(isimws.isim.person.create(isim_application=isim_server,
-                                           container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-                                           profile_name="Person",
-                                           username="bbrow",
-                                           surname="Brow",
-                                           full_name="Boe Brow",
-                                           aliases=["Jim", "Jack"],
-                                           password="Object99",
-                                           roles=[]))
 
-     #
-     # # Get the current SNMP monitoring setup details
-     # p(ibmsecurity.isam.base.snmp_monitoring.get(isamAppliance=isam_server))
-     # # Set the V2 SNMP monitoring
-     # p(ibmsecurity.isam.base.snmp_monitoring.set_v1v2(isamAppliance=isam_server, community="IBM"))
-     # # Commit or Deploy the changes
-     # p(ibmsecurity.isam.appliance.commit(isamAppliance=isam_server))
+    # Search for roles
+    print("Searching for roles...")
+    pretty_print(isimws.isim.role.search(isim_application=isim_server,
+                                         container_dn=None,
+                                         ldap_filter="(errolename=test-role)"))
+
+    # Get a role
+    print("Getting a role...")
+    pretty_print(isimws.isim.role.get(isim_application=isim_server,
+                                      role_dn="erglobalid=7148929463058980179,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"))
+
+    # # Get a container
+    # print("Getting a container...")
+    # pretty_print(isimws.isim.container.get(isim_application=isim_server, container_dn="erglobalid=00000000000000000000,ou=demo,dc=com"))
+    #
+    # # Create a person
+    # print("Creating a person...")
+    # pretty_print(isimws.isim.person.create(isim_application=isim_server,
+    #                                        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #                                        profile_name="Person",
+    #                                        username="bbrow",
+    #                                        surname="Brow",
+    #                                        full_name="Boe Brow",
+    #                                        aliases=["Jim", "Jack"],
+    #                                        password="Object99",
+    #                                        roles=[]))

@@ -1,9 +1,9 @@
 from typing import List, Dict, Optional
-import json
 import requests
 import logging
 from requests import Session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+# from lxml import etree
 
 import zeep
 from zeep import Client, Settings, Plugin
@@ -15,14 +15,16 @@ from isimws.utilities import tools
 from isimws.user.isimapplicationuser import ISIMApplicationUser
 
 
-# Zeep plugin used to extract the XML payload
+# Zeep plugin used to extract the XML payload for use in debugging
 class ZeepLoggingPlugin(Plugin):
     def ingress(self, envelope, http_headers, operation):
-        # print(http_headers)
+        # print("ENVELOPE: ")
+        # print(etree.tostring(envelope))
         return envelope, http_headers
 
     def egress(self, envelope, http_headers, operation, binding_options):
-        # print(http_headers)
+        # print("ENVELOPE: ")
+        # print(etree.tostring(envelope))
         return envelope, http_headers
 
 
@@ -108,6 +110,8 @@ class ISIMApplication:
                                                            plugins=[ZeepLoggingPlugin()]),
                 "WSPersonService": Client(base_url + "WSPersonServiceService?WSDL",
                                           transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
+                "WSRoleService": Client(base_url + "WSRoleServiceService?WSDL",
+                                        transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSPasswordService": Client(base_url + "WSPasswordServiceService?WSDL",
                                             transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSRequestService": Client(base_url + "WSRequestServiceService?WSDL",
@@ -310,7 +314,6 @@ class ISIMApplication:
                 return False
         return True
 
-
     def _process_connection_error(self, ignore_error, return_obj):
         """
         Handle a connection failure.
@@ -386,7 +389,8 @@ class ISIMApplication:
 
             # in the event of an invalid session ID, unconditionally raise an exception to abort execution
             if soap_fault['code'] == 'axis2ns1:Server' and soap_fault['message'] == 'Internal Error':
-                raise IBMFatal("HTTP Return code: 500. Fault message: " + soap_fault['message'] + "\n This is often caused by an invalid session with the server.")
+                raise IBMFatal("HTTP Return code: 500. Fault message: " + soap_fault[
+                    'message'] + "\n This is often caused by an invalid session with the server.")
 
             if not ignore_error:
                 raise IBMError("HTTP Return code: 500. Fault message: " + soap_fault['message'])
