@@ -9,6 +9,7 @@ import zeep
 from zeep import Client, Settings, Plugin
 from zeep.transports import Transport
 from zeep.exceptions import Fault
+from zeep.helpers import serialize_object
 
 from isimws.utilities import tools
 from isimws.user.isimapplicationuser import ISIMApplicationUser
@@ -393,7 +394,7 @@ class ISIMApplication:
         else:
             raise IBMFatal("Cannot process response. Invalid state.")
 
-        return_obj['data'] = zeep_response
+        return_obj['data'] = zeep.helpers.serialize_object(zeep_response)
 
     def _log_response(self, response):
         """

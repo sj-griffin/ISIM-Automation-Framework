@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # Create a user credential for ISAM appliance
     u = ISIMApplicationUser(username="itim manager", password="Object00")
     # Create an ISAM appliance with above credential
-    isim_server = ISIMApplication(hostname="192.168.42.106", user=u, port=9082)
+    isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
     # Get a container
     print("Getting a container...")
@@ -92,9 +92,9 @@ if __name__ == "__main__":
     pretty_print(isimws.isim.person.create(isim_application=isim_server,
                                            container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
                                            profile_name="Person",
-                                           username="jblow",
-                                           surname="Blow",
-                                           full_name="Joe Blow",
+                                           username="bbrow",
+                                           surname="Brow",
+                                           full_name="Boe Brow",
                                            aliases=["Jim", "Jack"],
                                            password="Object99",
                                            roles=[]))
