@@ -7,7 +7,7 @@ import isimws
 logger = logging.getLogger(__name__)
 
 # service name for this module
-service = "WSRoleService"
+soap_service = "WSRoleService"
 
 # minimum version required by this module
 requires_version = None
@@ -23,9 +23,9 @@ def search(isim_application: ISIMApplication,
     :param isim_application: The ISIMApplication instance to connect to.
     :param container_dn: The optional DN of a container to search in. Set to None to search everywhere.
     :param ldap_filter: An LDAP filter string to search for.
-    :param check_mode: Set to True to enable check mode :param force: Set to True to force execution regardless of
-        current state.
-    :return: An IBMResponse object. If the call was successful, the data field will contain the Python dict
+    :param check_mode: Set to True to enable check mode.
+    :param force: Set to True to force execution regardless of current state.
+    :return: An IBMResponse object. If the call was successful, the data field will contain a list of the Python dict
         representations of each role matching the filter.
     """
     # The session object is handled by the ISIMApplication instance
@@ -36,7 +36,7 @@ def search(isim_application: ISIMApplication,
 
         # Invoke the call
         ret_obj = isim_application.invoke_soap_request("Searching for roles",
-                                                       service,
+                                                       soap_service,
                                                        "searchRoles",
                                                        data,
                                                        requires_version=requires_version)
@@ -56,7 +56,7 @@ def search(isim_application: ISIMApplication,
 
         # Invoke the call
         ret_obj = isim_application.invoke_soap_request("Searching for roles in container " + container_dn,
-                                                       service,
+                                                       soap_service,
                                                        "searchForRolesInContainer",
                                                        data,
                                                        requires_version=requires_version)
@@ -79,7 +79,7 @@ def get(isim_application: ISIMApplication, role_dn: str, check_mode=False, force
 
     # Invoke the call
     ret_obj = isim_application.invoke_soap_request("Retrieving a static role",
-                                                   service,
+                                                   soap_service,
                                                    "lookupRole",
                                                    data,
                                                    requires_version=requires_version)
@@ -130,7 +130,7 @@ def create(isim_application: ISIMApplication,
     data = []
 
     # Get the required SOAP types
-    role_type_response = isim_application.retrieve_soap_type(service,
+    role_type_response = isim_application.retrieve_soap_type(soap_service,
                                                              "ns1:WSRole",
                                                              requires_version=requires_version)
 
@@ -139,7 +139,7 @@ def create(isim_application: ISIMApplication,
         return role_type_response
     role_type = role_type_response['data']
 
-    attribute_type_response = isim_application.retrieve_soap_type(service,
+    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
                                                                   "ns1:WSAttribute",
                                                                   requires_version=requires_version)
     # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
@@ -175,17 +175,18 @@ def create(isim_application: ISIMApplication,
                                                "'business'.")
 
     attribute_list.append(build_attribute(attr_type, 'errolename', [name]))
-    attribute_list.append(build_attribute(attr_type, 'eraccessname', [name]))
-    attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [description]))
     attribute_list.append(build_attribute(attr_type, 'owner', role_owners + user_owners))
 
     if enable_access is False:
-        attribute_list.append(build_attribute(attr_type, 'eraccessoption', 1))
+        attribute_list.append(build_attribute(attr_type, 'eraccessoption', [1]))
     else:
         if common_access is False:
-            attribute_list.append(build_attribute(attr_type, 'eraccessoption', 2))
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', [2]))
         elif common_access is True:
-            attribute_list.append(build_attribute(attr_type, 'eraccessoption', 3))
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', [3]))
+
+        attribute_list.append(build_attribute(attr_type, 'eraccessname', [name]))
+        attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [description]))
 
         if access_type is not None:
             if access_type.lower() == "application":
@@ -223,7 +224,7 @@ def create(isim_application: ISIMApplication,
 
     # Invoke the call
     ret_obj = isim_application.invoke_soap_request("Creating a Role",
-                                                   service,
+                                                   soap_service,
                                                    "createStaticRole",
                                                    data,
                                                    requires_version=requires_version)

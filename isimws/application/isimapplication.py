@@ -112,6 +112,8 @@ class ISIMApplication:
                                           transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSRoleService": Client(base_url + "WSRoleServiceService?WSDL",
                                         transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
+                "WSServiceService": Client(base_url + "WSServiceServiceService?WSDL",
+                                           transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSPasswordService": Client(base_url + "WSPasswordServiceService?WSDL",
                                             transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSRequestService": Client(base_url + "WSRequestServiceService?WSDL",

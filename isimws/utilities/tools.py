@@ -47,7 +47,7 @@ def version_compare(version1, version2):
         return -1
 
 
-def build_attribute(attribute_type, key: str, value_list: List[str]):
+def build_attribute(attribute_type, key: str, value_list: List):
     """
     Build a SOAP ns1:WSAttribute object.
     :param attribute_type: The SOAP type that can be used to instantiate the object.

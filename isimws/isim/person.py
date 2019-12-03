@@ -7,7 +7,7 @@ import isimws
 logger = logging.getLogger(__name__)
 
 # service name for this module
-service = "WSPersonService"
+soap_service = "WSPersonService"
 
 # minimum version required by this module
 requires_version = None
@@ -63,7 +63,7 @@ def create(isim_application: ISIMApplication,
     data = []
 
     # Get the required SOAP types
-    person_type_response = isim_application.retrieve_soap_type(service,
+    person_type_response = isim_application.retrieve_soap_type(soap_service,
                                                                "ns1:WSPerson",
                                                                requires_version=requires_version)
 
@@ -72,7 +72,7 @@ def create(isim_application: ISIMApplication,
         return person_type_response
     person_type = person_type_response['data']
 
-    attribute_type_response = isim_application.retrieve_soap_type(service,
+    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
                                                                   "ns1:WSAttribute",
                                                                   requires_version=requires_version)
     # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
@@ -112,7 +112,7 @@ def create(isim_application: ISIMApplication,
 
     # Invoke the call
     ret_obj = isim_application.invoke_soap_request("Creating a Person",
-                                                   service,
+                                                   soap_service,
                                                    "createPerson",
                                                    data,
                                                    requires_version=requires_version)

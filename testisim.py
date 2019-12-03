@@ -78,41 +78,119 @@ if __name__ == "__main__":
     This test program should not execute when imported, which would otherwise
     cause problems when generating the documentation.
     """
-    # Create a user credential for ISAM appliance
+    # Create a user credential for ISIM application
     u = ISIMApplicationUser(username="itim manager", password="Object00")
-    # Create an ISAM appliance with above credential
+    # Create an ISIM application with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
-    # Create a role
-    print("Creating a role...")
-    pretty_print(isimws.isim.role.create(isim_application=isim_server,
-                                         container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-                                         role_classification='application',
-                                         name='test-role',
-                                         description='A role to test the SOAP API',
-                                         role_owners=["erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
-                                         user_owners=["erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
-                                         enable_access=True,
-                                         common_access=False,
-                                         access_type='emailgroup',
-                                         access_image_uri=None,
-                                         access_search_terms=["test", "testing"],
-                                         access_additional_info="Some additional information",
-                                         access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
-                                                        {'text': 'A red badge', 'colour': 'red'}],
-                                         assignment_attributes=['attribute1', 'attribute2']))
+    # Search for services
+    print("Searching for services...")
+    pretty_print(isimws.isim.service.search(
+        isim_application=isim_server,
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        ldap_filter="(erservicename=soap-test-feed)"
+    ))
 
+    # Get a service
+    print("Getting a service...")
+    pretty_print(isimws.isim.service.get(
+        isim_application=isim_server,
+        service_dn="erglobalid=5621731231346846233,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com"
+    ))
 
-    # Search for roles
-    print("Searching for roles...")
-    pretty_print(isimws.isim.role.search(isim_application=isim_server,
-                                         container_dn=None,
-                                         ldap_filter="(errolename=test-role)"))
+    # Create an account service
+    print("Creating an account service...")
+    pretty_print(isimws.isim.service.create_account_service(
+        isim_application=isim_server,
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        service_type="ADprofile",
+        name="soap-test-service",
+        description="Here's a description",
+        owner="erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com",
+        service_prerequisite="erglobalid=5268667508840453154,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com",
+        define_access=True,
+        access_name="Test access",
+        access_type="role",
+        access_description="Access description",
+        access_image_uri="test.test",
+        access_search_terms=['search', 'term'],
+        access_additional_info="More information",
+        access_badges=[{'text': 'A badge', 'colour': 'blue'}],
+        configuration={
+            'erURL': 'demo.demo',
+            'erUid': 'admin',
+            'erPassword': 'Object00',
+            'erADBasePoint': 'abc',
+            'erADGroupBasePoint': 'def',
+            'erADDomainUser': 'ghi',
+            'erADDomainPassword': 'jkl',
+            'erURI': ['test1', 'test2']
+        },
+        check_mode=False,
+        force=False
+    ))
 
-    # Get a role
-    print("Getting a role...")
-    pretty_print(isimws.isim.role.get(isim_application=isim_server,
-                                      role_dn="erglobalid=7148929463058980179,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"))
+    # Create an identity feed
+    print("Creating an identity feed...")
+    pretty_print(isimws.isim.service.create_identity_feed(
+        isim_application=isim_server,
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        service_type="ADFeed",
+        name="soap-test-feed",
+        description="Here's a description",
+        use_workflow=True,
+        evaluate_sod=True,
+        placement_rule="Here's a rule",
+        configuration={
+            'erURL': 'demo.demo',
+            'erUid': 'admin',
+            'erPassword': 'Object00',
+            'erNamingContexts': ['erglobalid=00000000000000000000,ou=demo,dc=com'],
+            'erPersonProfileName': 'Person',
+            'erAttrMapFilename': '/test',
+            'ernamingattribute': 'uid'  # will appear as 'sAMAccountName' in the UI
+        },
+        check_mode=False,
+        force=False
+    ))
+
+    # # Create a role
+    # print("Creating a role...")
+    # pretty_print(isimws.isim.role.create(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     role_classification='application',
+    #     name='test-role',
+    #     description='A role to test the SOAP API',
+    #     role_owners=[
+    #         "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
+    #     user_owners=[
+    #         "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
+    #     enable_access=True,
+    #     common_access=False,
+    #     access_type='emailgroup',
+    #     access_image_uri=None,
+    #     access_search_terms=["test", "testing"],
+    #     access_additional_info="Some additional information",
+    #     access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
+    #                    {'text': 'A red badge', 'colour': 'red'}],
+    #     assignment_attributes=['attribute1', 'attribute2']
+    # ))
+    #
+    # # Search for roles
+    # print("Searching for roles...")
+    # pretty_print(isimws.isim.role.search(
+    #     isim_application=isim_server,
+    #     container_dn=None,
+    #     ldap_filter="(errolename=test-role)"
+    # ))
+    #
+    # # Get a role
+    # print("Getting a role...")
+    # pretty_print(isimws.isim.role.get(
+    #     isim_application=isim_server,
+    #     role_dn="erglobalid=7148929463058980179,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"
+    # ))
 
     # # Get a container
     # print("Getting a container...")
