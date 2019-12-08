@@ -51,9 +51,9 @@ def create(isim_application: ISIMApplication,
            container_dn: str,
            name: str,
            priority: int,
-           description: str = "",
-           keywords: str = "",
-           caption: str = "",
+           description: Optional[str] = None,
+           keywords: Optional[str] = None,
+           caption: Optional[str] = None,
            available_to_subunits: bool = False,
            enabled: bool = True,
            membership_type: str = "all",
@@ -157,10 +157,15 @@ def create(isim_application: ISIMApplication,
     # Setup the policy object
     policy_object = policy_type()
 
-    policy_object['description'] = description
+    if description is not None:
+        policy_object['description'] = description
     policy_object['name'] = name
-    policy_object['keywords'] = keywords
-    policy_object['caption'] = caption
+
+    if keywords is not None:
+        policy_object['keywords'] = keywords
+
+    if caption is not None:
+        policy_object['caption'] = caption
 
     if len(entitlements) < 1:
         raise ValueError("The entitlements argument must be a list containing at least one entry.")

@@ -96,9 +96,9 @@ if __name__ == "__main__":
     pretty_print(isimws.isim.provisioningpolicy.create(
         isim_application=isim_server,
         container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name="PP Tester",
+        name="Provisioning policy test",
         priority=50,
-        description="DESCRIPTION!",
+        description="Here's a description",
         keywords="here are some keywords",
         caption="Here's a caption",
         available_to_subunits=False,
