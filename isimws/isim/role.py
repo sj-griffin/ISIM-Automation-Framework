@@ -87,6 +87,294 @@ def get(isim_application: ISIMApplication, role_dn: str, check_mode=False, force
     return ret_obj
 
 
+def apply(isim_application: ISIMApplication,
+          container_dn: str,
+          name: str,
+          role_classification: str,
+          description: str = "",
+          role_owners: List[str] = [],
+          user_owners: List[str] = [],
+          enable_access: bool = False,
+          common_access: bool = False,
+          access_type: str = "",
+          access_image_uri: str = "",
+          access_search_terms: List[str] = [],
+          access_additional_info: str = "",
+          access_badges: List[Dict[str, str]] = [],
+          assignment_attributes: List[str] = [],
+          check_mode=False,
+          force=False) -> IBMResponse:
+    """
+    Set a Role. This function will dynamically choose whether to to create or modify based on whether a role with the
+        same name exists in the same container. Only attributes which differ from the existing role will be changed.
+        Note that the name and container_dn of an existing role can't be changed because they are used to identify the
+        role. If they don't match an existing role, a new role will be created with the specified name and container_dn.
+    :param isim_application: The ISIMApplication instance to connect to.
+    :param container_dn: The DN of the container (business unit) to create the role under.
+    :param name: The role name.
+    :param role_classification: Set to either "application" or "business".
+    :param description: A description of the role.
+    :param role_owners: A list of DNs corresponding to the roles that own this role.
+    :param user_owners: A list of DNs corresponding to the users that own this role.
+    :param enable_access: Set to True to enable access for the role.
+    :param common_access: Set to True to show the role as a common access.
+    :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
+    :param access_image_uri: The URI of an image to use for the access icon.
+    :param access_search_terms: A list of search terms for the access.
+    :param access_additional_info: Additional information about the acceess.
+    :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
+        keys 'text' and 'colour' with string values.
+    :param assignment_attributes: A list of attribute names to assign to the role.
+    :param check_mode: Set to True to enable check mode.
+    :param force: Set to True to force execution regardless of current state. This will always result in a new role
+        being created, regardless of whether a role with the same name in the same container already exists. Use with
+        caution.
+    :return: An IBMResponse object. If the call was successful, the data field will contain the Python dict
+        representation of the action taken by the server. If a modify request was used, the data field will be empty.
+    """
+
+    # Check that the compulsory attributes are set properly
+    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+            isinstance(name, str) and len(name) > 0 and
+            isinstance(role_classification, str) and len(role_classification) > 0):
+        raise ValueError("Invalid role configuration. container_dn, name, and role_classification must have "
+                         "non-empty string values.")
+
+    # If any values are set to None, they must be replaced with empty values. This is because these values will be
+    # passed to methods that interpret None as 'no change', whereas we want them to be explicitly set to empty values.
+    if description is None:
+        description = ""
+
+    if role_owners is None:
+        role_owners = []
+
+    if user_owners is None:
+        user_owners = []
+
+    if enable_access is None:
+        enable_access = False
+
+    if common_access is None:
+        common_access = False
+
+    if access_type is None:
+        access_type = ""
+
+    if access_image_uri is None:
+        access_image_uri = ""
+
+    if access_search_terms is None:
+        access_search_terms = []
+
+    if access_additional_info is None:
+        access_additional_info = ""
+
+    if access_badges is None:
+        access_badges = []
+
+    if assignment_attributes is None:
+        assignment_attributes = []
+
+    # Search for instances with the specified name in the specified container
+    search_response = search(
+        isim_application=isim_application,
+        container_dn=container_dn,
+        ldap_filter="(errolename=" + name + ")"
+    )
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if search_response['rc'] != 0:
+        return search_response
+    search_results = search_response['data']
+
+    if len(search_results) == 0 or force:
+        # If there are no results, create a new role and return the response
+        if check_mode:
+            return create_return_object(changed=True)
+        else:
+            return _create(
+                isim_application=isim_application,
+                container_dn=container_dn,
+                name=name,
+                role_classification=role_classification,
+                description=description,
+                role_owners=role_owners,
+                user_owners=user_owners,
+                enable_access=enable_access,
+                common_access=common_access,
+                access_type=access_type,
+                access_image_uri=access_image_uri,
+                access_search_terms=access_search_terms,
+                access_additional_info=access_additional_info,
+                access_badges=access_badges,
+                assignment_attributes=assignment_attributes
+            )
+    elif len(search_results) == 1:
+        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+        # modify operation is required.
+        existing_role = search_results[0]
+        modify_required = False
+
+        existing_role_classification = _get_role_attribute(existing_role, 'erroleclassification')
+
+        if existing_role_classification is None:
+            modify_required = True
+        elif role_classification.lower() == "application":
+            if existing_role_classification[0] != "role.classification.application":
+                modify_required = True
+            else:
+                role_classification = None  # set to None so that no change occurs
+        elif role_classification.lower() == "business":
+            if existing_role_classification[0] != "role.classification.business":
+                modify_required = True
+            else:
+                role_classification = None  # set to None so that no change occurs
+        else:
+            raise ValueError(role_classification + "is not a valid role classification. Must be 'application' or "
+                                                   "'business'.")
+
+        existing_description = _get_role_attribute(existing_role, 'description')
+        if existing_description is None:
+            modify_required = True
+        elif description != existing_role['description'] or description != existing_description[0]:
+            modify_required = True
+        else:
+            description = None  # set to None so that no change occurs
+
+        existing_owners = _get_role_attribute(existing_role, 'owner')
+        new_owners = role_owners + user_owners
+        if existing_owners is None:
+            modify_required = True
+        elif Counter(new_owners) != Counter(existing_owners):
+            modify_required = True
+        else:
+            # set to None so that no change occurs
+            role_owners = None
+            user_owners = None
+
+        existing_access_setting = _get_role_attribute(existing_role, 'eraccessoption')
+        if existing_access_setting is None:
+            modify_required = True
+        elif not enable_access and existing_access_setting[0] != '1':
+            modify_required = True
+        elif enable_access and not common_access and existing_access_setting[0] != '2':
+            modify_required = True
+        elif enable_access and common_access and existing_access_setting[0] != '3':
+            modify_required = True
+        else:
+            # set to None so that no change occurs
+            enable_access = None
+            common_access = None
+
+        existing_access_type = _get_role_attribute(existing_role, 'erobjectprofilename')
+
+        if existing_access_type is None:
+            modify_required = True
+        elif access_type.lower() == "application":
+            if existing_access_type[0] != "Application":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "sharedfolder":
+            if existing_access_type[0] != "SharedFolder":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "emailgroup":
+            if existing_access_type[0] != "MailGroup":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "role":
+            if existing_access_type[0] != "AccessRole":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+
+        else:
+            raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
+                                           "'emailgroup', or 'role'.")
+
+        existing_access_image_uri = _get_role_attribute(existing_role, 'erimageuri')
+        if existing_access_image_uri is None:
+            if access_image_uri != "":
+                modify_required = True
+            else:
+                print("TRIGGERED")
+                access_image_uri = None  # set to None so that no change occurs
+        elif access_image_uri != existing_access_image_uri[0]:
+            modify_required = True
+        else:
+            access_image_uri = None  # set to None so that no change occurs
+
+        existing_access_search_terms = _get_role_attribute(existing_role, 'eraccesstag')
+        if existing_access_search_terms is None:
+            modify_required = True
+        elif Counter(access_search_terms) != Counter(existing_access_search_terms):
+            modify_required = True
+        else:
+            access_search_terms = None  # set to None so that no change occurs
+
+        existing_access_additional_info = _get_role_attribute(existing_role, 'eradditionalinformation')
+        if existing_access_additional_info is None:
+            modify_required = True
+        elif access_additional_info != existing_access_additional_info[0]:
+            modify_required = True
+        else:
+            access_additional_info = None  # set to None so that no change occurs
+
+        existing_access_badges = _get_role_attribute(existing_role, 'erbadge')
+
+        new_badges = []
+        for badge in access_badges:
+            new_badges.append(str(badge['text'] + "~" + badge['colour']))
+
+        if existing_access_badges is None:
+            modify_required = True
+        elif Counter(new_badges) != Counter(existing_access_badges):
+            modify_required = True
+        else:
+            access_badges = None  # set to None so that no change occurs
+
+        existing_assignment_attributes = _get_role_attribute(existing_role, 'erroleassignmentkey')
+        if existing_assignment_attributes is None:
+            modify_required = True
+        elif Counter(assignment_attributes) != Counter(existing_assignment_attributes):
+            modify_required = True
+        else:
+            assignment_attributes = None  # set to None so that no change occurs
+
+        if modify_required:
+            if check_mode:
+                return create_return_object(changed=True)
+            else:
+                existing_dn = existing_role['itimDN']
+
+                return _modify(
+                    isim_application=isim_application,
+                    role_dn=existing_dn,
+                    role_classification=role_classification,
+                    description=description,
+                    role_owners=role_owners,
+                    user_owners=user_owners,
+                    enable_access=enable_access,
+                    common_access=common_access,
+                    access_type=access_type,
+                    access_image_uri=access_image_uri,
+                    access_search_terms=access_search_terms,
+                    access_additional_info=access_additional_info,
+                    access_badges=access_badges,
+                    assignment_attributes=assignment_attributes
+                )
+        else:
+            return create_return_object(changed=False)
+
+    else:
+        return create_return_object(changed=False, warnings=["More than one instance of the role '" + name + "' was "
+                                                             "found in container '" + container_dn + "'. No action "
+                                                             "was taken as it is unclear which role is being referred "
+                                                             "to."])
+
+
 def _create(isim_application: ISIMApplication,
             container_dn: str,
             name: str,
@@ -264,284 +552,6 @@ def _modify(isim_application: ISIMApplication,
                                                    data,
                                                    requires_version=requires_version)
     return ret_obj
-
-
-def apply(isim_application: ISIMApplication,
-          container_dn: str,
-          name: str,
-          role_classification: str,
-          description: str = "",
-          role_owners: List[str] = [],
-          user_owners: List[str] = [],
-          enable_access: bool = False,
-          common_access: bool = False,
-          access_type: str = "",
-          access_image_uri: str = "",
-          access_search_terms: List[str] = [],
-          access_additional_info: str = "",
-          access_badges: List[Dict[str, str]] = [],
-          assignment_attributes: List[str] = [],
-          check_mode=False,
-          force=False) -> IBMResponse:
-    """
-    Set a Role. This function will dynamically choose whether to to create or modify based on whether a role with the
-        same name exists in the same container. Only attributes which differ from the existing role will be changed.
-        Note that the name and container_dn of an existing role can't be changed because they are used to identify the
-        role. If they don't match an existing role, a new role will be created with the specified name and container_dn.
-    :param isim_application: The ISIMApplication instance to connect to.
-    :param container_dn: The DN of the container (business unit) to create the role under.
-    :param name: The role name.
-    :param role_classification: Set to either "application" or "business".
-    :param description: A description of the role.
-    :param role_owners: A list of DNs corresponding to the roles that own this role.
-    :param user_owners: A list of DNs corresponding to the users that own this role.
-    :param enable_access: Set to True to enable access for the role.
-    :param common_access: Set to True to show the role as a common access.
-    :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
-    :param access_image_uri: The URI of an image to use for the access icon.
-    :param access_search_terms: A list of search terms for the access.
-    :param access_additional_info: Additional information about the acceess.
-    :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
-        keys 'text' and 'colour' with string values.
-    :param assignment_attributes: A list of attribute names to assign to the role.
-    :param check_mode: Set to True to enable check mode.
-    :param force: Set to True to force execution regardless of current state.
-    :return: An IBMResponse object. If the call was successful, the data field will contain the Python dict
-        representation of the action taken by the server. If a modify request was used, the data field will be empty.
-    """
-
-    # Check that the compulsory attributes are set properly
-    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
-            isinstance(name, str) and len(name) > 0 and
-            isinstance(role_classification, str) and len(role_classification) > 0):
-        raise ValueError("Invalid role configuration. container_dn, name, and role_classification must have "
-                         "non-empty string values.")
-
-    # If any values are set to None, they must be replaced with empty values. This is because these values will be
-    # passed to methods that interpret None as 'no change', whereas we want them to be explicitly set to empty values.
-    if description is None:
-        description = ""
-
-    if role_owners is None:
-        role_owners = []
-
-    if user_owners is None:
-        user_owners = []
-
-    if enable_access is None:
-        enable_access = False
-
-    if common_access is None:
-        common_access = False
-
-    if access_type is None:
-        access_type = ""
-
-    if access_image_uri is None:
-        access_image_uri = ""
-
-    if access_search_terms is None:
-        access_search_terms = []
-
-    if access_additional_info is None:
-        access_additional_info = ""
-
-    if access_badges is None:
-        access_badges = []
-
-    if assignment_attributes is None:
-        assignment_attributes = []
-
-    # Search for instances with the specified name in the specified container
-    search_response = search(
-        isim_application=isim_application,
-        container_dn=container_dn,
-        ldap_filter="(errolename=" + name + ")"
-    )
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if search_response['rc'] != 0:
-        return search_response
-    search_results = search_response['data']
-
-    if len(search_results) == 0:
-        # If there are no results, create a new role and return the response
-        return _create(
-            isim_application=isim_application,
-            container_dn=container_dn,
-            name=name,
-            role_classification=role_classification,
-            description=description,
-            role_owners=role_owners,
-            user_owners=user_owners,
-            enable_access=enable_access,
-            common_access=common_access,
-            access_type=access_type,
-            access_image_uri=access_image_uri,
-            access_search_terms=access_search_terms,
-            access_additional_info=access_additional_info,
-            access_badges=access_badges,
-            assignment_attributes=assignment_attributes
-        )
-    elif len(search_results) == 1:
-        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
-        # modify operation is required.
-        existing_role = search_results[0]
-        modify_required = False
-
-        existing_role_classification = _get_role_attribute(existing_role, 'erroleclassification')
-
-        if existing_role_classification is None:
-            modify_required = True
-        elif role_classification.lower() == "application":
-            if existing_role_classification[0] != "role.classification.application":
-                modify_required = True
-            else:
-                role_classification = None  # set to None so that no change occurs
-        elif role_classification.lower() == "business":
-            if existing_role_classification[0] != "role.classification.business":
-                modify_required = True
-            else:
-                role_classification = None  # set to None so that no change occurs
-        else:
-            raise ValueError(role_classification + "is not a valid role classification. Must be 'application' or "
-                                                   "'business'.")
-
-        existing_description = _get_role_attribute(existing_role, 'description')
-        if existing_description is None:
-            modify_required = True
-        elif description != existing_role['description'] or description != existing_description[0]:
-            modify_required = True
-        else:
-            description = None  # set to None so that no change occurs
-
-        existing_owners = _get_role_attribute(existing_role, 'owner')
-        new_owners = role_owners + user_owners
-        if existing_owners is None:
-            modify_required = True
-        elif Counter(new_owners) != Counter(existing_owners):
-            modify_required = True
-        else:
-            # set to None so that no change occurs
-            role_owners = None
-            user_owners = None
-
-        existing_access_setting = _get_role_attribute(existing_role, 'eraccessoption')
-        if existing_access_setting is None:
-            modify_required = True
-        elif not enable_access and existing_access_setting[0] != '1':
-            modify_required = True
-        elif enable_access and not common_access and existing_access_setting[0] != '2':
-            modify_required = True
-        elif enable_access and common_access and existing_access_setting[0] != '3':
-            modify_required = True
-        else:
-            # set to None so that no change occurs
-            enable_access = None
-            common_access = None
-
-        existing_access_type = _get_role_attribute(existing_role, 'erobjectprofilename')
-
-        if existing_access_type is None:
-            modify_required = True
-        elif access_type.lower() == "application":
-            if existing_access_type[0] != "Application":
-                modify_required = True
-            else:
-                access_type = None  # set to None so that no change occurs
-        elif access_type.lower() == "sharedfolder":
-            if existing_access_type[0] != "SharedFolder":
-                modify_required = True
-            else:
-                access_type = None  # set to None so that no change occurs
-        elif access_type.lower() == "emailgroup":
-            if existing_access_type[0] != "MailGroup":
-                modify_required = True
-            else:
-                access_type = None  # set to None so that no change occurs
-        elif access_type.lower() == "role":
-            if existing_access_type[0] != "AccessRole":
-                modify_required = True
-            else:
-                access_type = None  # set to None so that no change occurs
-
-        else:
-            raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
-                                           "'emailgroup', or 'role'.")
-
-        existing_access_image_uri = _get_role_attribute(existing_role, 'erimageuri')
-        if existing_access_image_uri is None:
-            if access_image_uri != "":
-                modify_required = True
-            else:
-                print("TRIGGERED")
-                access_image_uri = None  # set to None so that no change occurs
-        elif access_image_uri != existing_access_image_uri[0]:
-            modify_required = True
-        else:
-            access_image_uri = None  # set to None so that no change occurs
-
-        existing_access_search_terms = _get_role_attribute(existing_role, 'eraccesstag')
-        if existing_access_search_terms is None:
-            modify_required = True
-        elif Counter(access_search_terms) != Counter(existing_access_search_terms):
-            modify_required = True
-        else:
-            access_search_terms = None  # set to None so that no change occurs
-
-        existing_access_additional_info = _get_role_attribute(existing_role, 'eradditionalinformation')
-        if existing_access_additional_info is None:
-            modify_required = True
-        elif access_additional_info != existing_access_additional_info[0]:
-            modify_required = True
-        else:
-            access_additional_info = None  # set to None so that no change occurs
-
-        existing_access_badges = _get_role_attribute(existing_role, 'erbadge')
-
-        new_badges = []
-        for badge in access_badges:
-            new_badges.append(str(badge['text'] + "~" + badge['colour']))
-
-        if existing_access_badges is None:
-            modify_required = True
-        elif Counter(new_badges) != Counter(existing_access_badges):
-            modify_required = True
-        else:
-            access_badges = None  # set to None so that no change occurs
-
-        existing_assignment_attributes = _get_role_attribute(existing_role, 'erroleassignmentkey')
-        if existing_assignment_attributes is None:
-            modify_required = True
-        elif Counter(assignment_attributes) != Counter(existing_assignment_attributes):
-            modify_required = True
-        else:
-            assignment_attributes = None  # set to None so that no change occurs
-
-        if modify_required:
-            existing_dn = existing_role['itimDN']
-
-            return _modify(
-                isim_application=isim_application,
-                role_dn=existing_dn,
-                role_classification=role_classification,
-                description=description,
-                role_owners=role_owners,
-                user_owners=user_owners,
-                enable_access=enable_access,
-                common_access=common_access,
-                access_type=access_type,
-                access_image_uri=access_image_uri,
-                access_search_terms=access_search_terms,
-                access_additional_info=access_additional_info,
-                access_badges=access_badges,
-                assignment_attributes=assignment_attributes
-            )
-        else:
-            return create_return_object()
-
-    else:
-        raise ValueError("More than one instance of the role '" + name + "' was found in container '" + container_dn +
-                         "'. Cannot determine what action to take.")
 
 
 def _build_role_attributes_list(

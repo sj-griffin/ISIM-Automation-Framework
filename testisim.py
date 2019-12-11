@@ -214,7 +214,7 @@ if __name__ == "__main__":
         container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
         name='Applied Role 3',
         role_classification='business',
-        description='A role to test the SOAP API. How about that?',
+        description='A role to test the SOAP API.',
         role_owners=[
             "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
         user_owners=[
@@ -227,7 +227,9 @@ if __name__ == "__main__":
         access_additional_info="Some additional information",
         access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
                        {'text': 'A red badge', 'colour': 'red'}],
-        assignment_attributes=['attribute1', 'attribute2']
+        assignment_attributes=['attribute1', 'attribute2'],
+        check_mode=False,
+        force=False
     ))
 
     # Search for roles
