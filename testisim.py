@@ -83,58 +83,58 @@ if __name__ == "__main__":
     # Create an ISIM application with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
-    # Search for a provisioning policy
-    print("Searching for a provisioning policy...")
-    pretty_print(isimws.isim.provisioningpolicy.search(
-        isim_application=isim_server,
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        policy_name="test policy"
-    ))
-
-    # Create a provisioning policy
-    print("Creating a provisioning policy...")
-    pretty_print(isimws.isim.provisioningpolicy.create(
-        isim_application=isim_server,
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name="Provisioning policy test",
-        priority=50,
-        description="Here's a description",
-        keywords="here are some keywords",
-        caption="Here's a caption",
-        available_to_subunits=False,
-        enabled=True,
-        membership_type="roles",
-        membership_roles=['erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com',
-                          'erglobalid=3886333847069531567,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'],
-        entitlements=[
-            {
-                'automatic': False,
-                'ownership_type': 'all',
-                'target_type': 'all',
-                'service_type': None,
-                'service_dn': None,
-                'workflow': None
-            },
-            {
-                'automatic': True,
-                'ownership_type': 'device',
-                'target_type': 'policy',
-                'service_type': 'ADprofile',
-                'service_dn': None,
-                'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
-            },
-            {
-                'automatic': False,
-                'ownership_type': 'individual',
-                'target_type': 'specific',
-                'service_type': None,
-                'service_dn': 'erglobalid=5640892613783950619,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com',
-                'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
-            }
-        ],
-        check_mode=False,
-        force=False
-    ))
+    # # Search for a provisioning policy
+    # print("Searching for a provisioning policy...")
+    # pretty_print(isimws.isim.provisioningpolicy.search(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     policy_name="test policy"
+    # ))
+    #
+    # # Create a provisioning policy
+    # print("Creating a provisioning policy...")
+    # pretty_print(isimws.isim.provisioningpolicy.create(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="Provisioning policy test",
+    #     priority=50,
+    #     description="Here's a description",
+    #     keywords="here are some keywords",
+    #     caption="Here's a caption",
+    #     available_to_subunits=False,
+    #     enabled=True,
+    #     membership_type="roles",
+    #     membership_roles=['erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com',
+    #                       'erglobalid=3886333847069531567,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'],
+    #     entitlements=[
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'all',
+    #             'target_type': 'all',
+    #             'service_type': None,
+    #             'service_dn': None,
+    #             'workflow': None
+    #         },
+    #         {
+    #             'automatic': True,
+    #             'ownership_type': 'device',
+    #             'target_type': 'policy',
+    #             'service_type': 'ADprofile',
+    #             'service_dn': None,
+    #             'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
+    #         },
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'individual',
+    #             'target_type': 'specific',
+    #             'service_type': None,
+    #             'service_dn': 'erglobalid=5640892613783950619,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com',
+    #             'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
+    #         }
+    #     ],
+    #     check_mode=False,
+    #     force=False
+    # ))
 
     # # Search for services
     # print("Searching for services...")
@@ -207,35 +207,35 @@ if __name__ == "__main__":
     #     force=False
     # ))
 
-    # # Create a role
-    # print("Creating a role...")
-    # pretty_print(isimws.isim.role.create(
-    #     isim_application=isim_server,
-    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     role_classification='application',
-    #     name='test-role',
-    #     description='A role to test the SOAP API',
-    #     role_owners=[
-    #         "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
-    #     user_owners=[
-    #         "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
-    #     enable_access=True,
-    #     common_access=False,
-    #     access_type='emailgroup',
-    #     access_image_uri=None,
-    #     access_search_terms=["test", "testing"],
-    #     access_additional_info="Some additional information",
-    #     access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
-    #                    {'text': 'A red badge', 'colour': 'red'}],
-    #     assignment_attributes=['attribute1', 'attribute2']
-    # ))
-    #
-    # # Search for roles
+    # Idempotently apply a role configuration
+    print("Applying a role configuration...")
+    pretty_print(isimws.isim.role.apply(
+        isim_application=isim_server,
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        name='Applied Role 3',
+        role_classification='business',
+        description='A role to test the SOAP API. How about that?',
+        role_owners=[
+            "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
+        user_owners=[
+            "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
+        enable_access=True,
+        common_access=True,
+        access_type='emailgroup',
+        access_image_uri="test.demo/test",
+        access_search_terms=["test", "testing"],
+        access_additional_info="Some additional information",
+        access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
+                       {'text': 'A red badge', 'colour': 'red'}],
+        assignment_attributes=['attribute1', 'attribute2']
+    ))
+
+    # Search for roles
     # print("Searching for roles...")
     # pretty_print(isimws.isim.role.search(
     #     isim_application=isim_server,
     #     container_dn=None,
-    #     ldap_filter="(errolename=test-role)"
+    #     ldap_filter="(errolename=test-role-2)"
     # ))
     #
     # # Get a role

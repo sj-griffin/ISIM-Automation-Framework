@@ -3,7 +3,7 @@ import requests
 import logging
 from requests import Session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-# from lxml import etree
+from lxml import etree
 
 import zeep
 from zeep import Client, Settings, Plugin
@@ -68,6 +68,22 @@ class IBMResponse(dict):
         if self.get('fault', True) is False:
             return False
         return True
+
+
+def create_return_object(rc=0, data=None, warnings=[], changed=False):
+    """
+    Create a response object with the given properties.
+    :param rc: The return code of the call. Should be set to 0 on success, or a meaningful error code on failure.
+    :param data: the data object of the response. Often in Json.
+    :param warnings: The warnings of the executed call.
+    :param changed: Whether there was any change.
+    :return: The IBMResponse object.
+    """
+    return IBMResponse({'rc': rc,
+                        'data': data,
+                        'changed': changed,
+                        'warnings': warnings
+                        })
 
 
 class ISIMApplication:
@@ -164,7 +180,7 @@ class ISIMApplication:
 
         # Update the list of warnings
         warnings = self._process_warnings(warnings=warnings)
-        return_obj = self.create_return_object(warnings=warnings)
+        return_obj = create_return_object(warnings=warnings)
 
         # Check the minimum version requirement is met
         self._check_version(return_obj, requires_version, ignore_error=ignore_error)
@@ -219,7 +235,7 @@ class ISIMApplication:
 
         # Update the list of warnings
         warnings = self._process_warnings(warnings=warnings)
-        return_obj = self.create_return_object(warnings=warnings)
+        return_obj = create_return_object(warnings=warnings)
 
         # Check the minimum version requirement is met
         self._check_version(return_obj, requires_version, ignore_error=ignore_error)
@@ -379,12 +395,12 @@ class ISIMApplication:
         # infer the status code from that. The Zeep library will raise an exception for most errors before the call
         # is actually made, so we only need to account for a few cases when processing the response. All SOAP faults
         # are assumed to produce 500 status codes in accordance with the SOAP standard.
-        if soap_fault is None and zeep_response is not None:
+        if soap_fault is None:
             return_obj['rc'] = 0
             self.logger.debug("Request succeeded: ")
             self.logger.debug("     Status Code: 200")
             self.logger.debug("     Text: " + str(zeep_response))
-        elif soap_fault is not None and zeep_response is None:
+        else:
             return_obj['rc'] = 500
 
             self.logger.error("Request failed: ")
@@ -400,8 +416,6 @@ class ISIMApplication:
             if not ignore_error:
                 raise IBMError("HTTP Return code: 500. Fault message: " + soap_fault['message'])
             return_obj['changed'] = False  # force changed to be False as there is an error
-        else:
-            raise IBMFatal("Cannot process response. Invalid state.")
 
         return_obj['data'] = zeep.helpers.serialize_object(zeep_response)
 
@@ -414,18 +428,3 @@ class ISIMApplication:
             self.logger.debug("Response: " + str(response))
         else:
             self.logger.debug("Response: None")
-
-    def create_return_object(self, rc=0, data={}, warnings=[], changed=False):
-        """
-        Create a response object with the given properties.
-        :param rc: The return code of the call. Should be set to 0 on success, or a meaningful error code on failure.
-        :param data: the data object of the response. Often in Json.
-        :param warnings: The warnings of the executed call.
-        :param changed: Whether there was any change.
-        :return: The IBMResponse object.
-        """
-        return IBMResponse({'rc': rc,
-                            'data': data,
-                            'changed': changed,
-                            'warnings': warnings
-                            })
