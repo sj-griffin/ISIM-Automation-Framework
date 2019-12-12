@@ -3,7 +3,7 @@ import requests
 import logging
 from requests import Session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from lxml import etree
+# from lxml import etree
 
 import zeep
 from zeep import Client, Settings, Plugin

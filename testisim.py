@@ -136,12 +136,12 @@ if __name__ == "__main__":
     #     force=False
     # ))
 
-    # # Search for services
+    # Search for services
     # print("Searching for services...")
     # pretty_print(isimws.isim.service.search(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     ldap_filter="(erservicename=soap-test-feed)"
+    #     ldap_filter="(erservicename=derp)"
     # ))
     #
     # # Get a service
@@ -151,20 +151,20 @@ if __name__ == "__main__":
     #     service_dn="erglobalid=5621731231346846233,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com"
     # ))
     #
-    # # Create an account service
-    # print("Creating an account service...")
-    # pretty_print(isimws.isim.service.create_account_service(
+    # Idempotently apply an account service configuration
+    # print("Applying an account service configuration...")
+    # pretty_print(isimws.isim.service.apply_account_service(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
     #     service_type="ADprofile",
-    #     name="soap-test-service",
+    #     name="soap-test-service 2",
     #     description="Here's a description",
     #     owner="erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com",
     #     service_prerequisite="erglobalid=5268667508840453154,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com",
     #     define_access=True,
     #     access_name="Test access",
     #     access_type="role",
-    #     access_description="Access description",
+    #     access_description="Access description...",
     #     access_image_uri="test.test",
     #     access_search_terms=['search', 'term'],
     #     access_additional_info="More information",
@@ -183,54 +183,54 @@ if __name__ == "__main__":
     #     force=False
     # ))
     #
-    # # Create an identity feed
-    # print("Creating an identity feed...")
-    # pretty_print(isimws.isim.service.create_identity_feed(
-    #     isim_application=isim_server,
-    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     service_type="ADFeed",
-    #     name="soap-test-feed",
-    #     description="Here's a description",
-    #     use_workflow=True,
-    #     evaluate_sod=True,
-    #     placement_rule="Here's a rule",
-    #     configuration={
-    #         'erURL': 'demo.demo',
-    #         'erUid': 'admin',
-    #         'erPassword': 'Object00',
-    #         'erNamingContexts': ['erglobalid=00000000000000000000,ou=demo,dc=com'],
-    #         'erPersonProfileName': 'Person',
-    #         'erAttrMapFilename': '/test',
-    #         'ernamingattribute': 'uid'  # will appear as 'sAMAccountName' in the UI
-    #     },
-    #     check_mode=False,
-    #     force=False
-    # ))
-
-    # Idempotently apply a role configuration
-    print("Applying a role configuration...")
-    pretty_print(isimws.isim.role.apply(
+    # Idempotently apply an identity feed configuration
+    print("Applying an identity feed configuration...")
+    pretty_print(isimws.isim.service.apply_identity_feed(
         isim_application=isim_server,
         container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name='Applied Role 3',
-        role_classification='business',
-        description='A role to test the SOAP API.',
-        role_owners=[
-            "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
-        user_owners=[
-            "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
-        enable_access=True,
-        common_access=True,
-        access_type='emailgroup',
-        access_image_uri="test.demo/test",
-        access_search_terms=["test", "testing"],
-        access_additional_info="Some additional information",
-        access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
-                       {'text': 'A red badge', 'colour': 'red'}],
-        assignment_attributes=['attribute1', 'attribute2'],
+        service_type="ADFeed",
+        name="soap-test-feed 4",
+        description="Here's a description",
+        use_workflow=True,
+        evaluate_sod=True,
+        placement_rule="Here's a rule",
+        configuration={
+            'erURL': 'demo.demo',
+            'erUid': 'admin',
+            'erPassword': 'Object00',
+            'erNamingContexts': ['erglobalid=00000000000000000000,ou=demo,dc=com'],
+            'erPersonProfileName': 'Person',
+            'erAttrMapFilename': '/test',
+            'ernamingattribute': 'uid'  # will appear as 'sAMAccountName' in the UI
+        },
         check_mode=False,
         force=False
     ))
+
+    # # Idempotently apply a role configuration
+    # print("Applying a role configuration...")
+    # pretty_print(isimws.isim.role.apply(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name='Applied Role 3',
+    #     role_classification='business',
+    #     description='A role to test the SOAP API.',
+    #     role_owners=[
+    #         "erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"],
+    #     user_owners=[
+    #         "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"],
+    #     enable_access=True,
+    #     common_access=True,
+    #     access_type='emailgroup',
+    #     access_image_uri="test.demo/test",
+    #     access_search_terms=["test", "testing"],
+    #     access_additional_info="Some additional information",
+    #     access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
+    #                    {'text': 'A red badge', 'colour': 'red'}],
+    #     assignment_attributes=['attribute1', 'attribute2'],
+    #     check_mode=False,
+    #     force=False
+    # ))
 
     # Search for roles
     # print("Searching for roles...")

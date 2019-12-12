@@ -61,3 +61,40 @@ def build_attribute(attribute_type, key: str, value_list: List):
     attr['isEncoded'] = False
     attr['values'] = {'item': value_list}
     return attr
+
+
+def get_soap_attribute(returned_object: Dict, key: str) -> Optional[List]:
+    """
+    A method to simplify parsing of objects (such as services or roles) returned by the SOAP API when using a search or
+    get operation. This method can be used to easily access attributes stored in the object's 'attributes' list.
+    Depending on the type of object being searched for, certain attributes such as 'select', 'name', and 'itimDN'
+    aren't part of this list and can be referenced by their keys instead.
+    :param returned_object: An OrderedDict representing an object such as a role or service, as returned by the get
+    and search calls.
+    :param key: The name of a key to retrieve.
+    :return: A list of values for the requested key, or None if the key doesn't exist.
+    """
+    attributes = returned_object['attributes']['item']
+
+    for attribute in attributes:
+        if attribute['name'].lower() == key.lower():
+            return attribute['values']['item']
+
+    return None
+
+
+def list_soap_attribute_keys(returned_object: Dict) -> Optional[List]:
+    """
+    A method to simplify parsing of objects (such as services or roles) returned by the SOAP API when using a search or
+    get operation. This method can be used to get a list of all attribute keys stored in the object's 'attributes' list.
+    Depending on the type of object being searched for, certain attributes such as 'select', 'name', and 'itimDN'
+    aren't part of this list and can be referenced by their keys instead.
+    :param returned_object: An OrderedDict representing an object such as a role or service, as returned by the get
+    and search calls.
+    :return: A list of keys in the object's attributes list.
+    """
+    attributes = returned_object['attributes']['item']
+    keys = []
+    for attribute in attributes:
+        keys.append(attribute['name'].lower())
+    return keys

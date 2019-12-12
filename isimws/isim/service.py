@@ -1,7 +1,8 @@
 from typing import List, Dict, Optional
 import logging
-from isimws.application.isimapplication import ISIMApplication
-from isimws.utilities.tools import build_attribute
+from collections import Counter
+from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
+from isimws.utilities.tools import build_attribute, get_soap_attribute, list_soap_attribute_keys
 import isimws
 
 logger = logging.getLogger(__name__)
@@ -75,37 +76,43 @@ def get(isim_application: ISIMApplication, service_dn: str, check_mode=False, fo
     return ret_obj
 
 
-def create_account_service(isim_application: ISIMApplication,
-                           container_dn: str,
-                           service_type: str,
-                           name: str,
-                           description: Optional[str],
-                           owner: Optional[str] = None,
-                           service_prerequisite: Optional[str] = None,
-                           define_access: bool = False,
-                           access_name: Optional[str] = None,
-                           access_type: Optional[str] = None,
-                           access_description: Optional[str] = None,
-                           access_image_uri: Optional[str] = None,
-                           access_search_terms: List[str] = [],
-                           access_additional_info: str = None,
-                           access_badges: List[Dict[str, str]] = [],
-                           configuration: Dict = {},
-                           check_mode=False,
-                           force=False):
+def apply_account_service(isim_application: ISIMApplication,
+                          container_dn: str,
+                          name: str,
+                          service_type: str,
+                          description: str = "",
+                          owner: str = "",
+                          service_prerequisite: str = "",
+                          define_access: bool = False,
+                          access_name: str = "",
+                          access_type: str = "",
+                          access_description: str = "",
+                          access_image_uri: str = "",
+                          access_search_terms: List[str] = [],
+                          access_additional_info: str = "",
+                          access_badges: List[Dict[str, str]] = [],
+                          configuration: Dict = {},
+                          check_mode=False,
+                          force=False):
     """
-    Create an account service.
+    Apply an account service configuration. This function will dynamically choose whether to to create or modify based
+        on whether a service with the same name exists in the same container. Only attributes which differ from the
+        existing service will be changed. Note that encrypted attribute values such as passwords will always be updated
+        because there is no way to determine whether the new value matches the existing one. Note that the name and
+        container_dn of an existing service can't be changed because they are used to identify the service. If they
+        don't match an existing service, a new service will be created with the specified name and container_dn.
+        The service_type of an existing service cannot be changed either. To do this you will need to delete the old
+        service and create a new one.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param container_dn: The DN of the container (business unit) to create the service under.
+    :param container_dn: The DN of the container (business unit) that the service exists in.
+    :param name: The service name.
     :param service_type: The type of service to create. Corresponds to the erobjectprofilename attribute in LDAP.
         Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
         'PosixLinuxProfile', 'PosixSolarisProfile', 'WinLocalProfile', or 'HostedService'.
-    :param name: The service name.
     :param description: A description of the service.
     :param owner: A DN corresponding to the user that owns the service.
     :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
-    :param define_access: Set to True to define an access for the service. If False, all access related attributes will
-        be ignored.
+    :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
     :param access_description: A description for the access.
@@ -116,110 +123,567 @@ def create_account_service(isim_application: ISIMApplication,
         keys 'text' and 'colour' with string values.
     :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
         being used to create the service.
-    :param check_mode: Set to True to enable check mode
-    :param force: Set to True to force execution regardless of current state
+    :param check_mode: Set to True to enable check mode.
+    :param force: Set to True to force execution regardless of current state. This will always result in a new service
+        being created, regardless of whether a service with the same name in the same container already exists. Use with
+        caution.
     :return: An IBMResponse object. If the call was successful, the data field will contain the DN of the service
-        that was created.
+        that was created. If a modify request was used, the data field will be empty.
     """
-    # Get the required SOAP types
-    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
-                                                                  "ns1:WSAttribute",
-                                                                  requires_version=requires_version)
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if attribute_type_response['rc'] != 0:
-        return attribute_type_response
-    attr_type = attribute_type_response['data']
 
-    attribute_list, data = _initiate_create(attr_type,
-                                            container_dn,
-                                            service_type,
-                                            name,
-                                            description,
-                                            configuration)
-
-    if owner is not None:
-        attribute_list.append(build_attribute(attr_type, 'owner', [owner]))
-
-    if service_prerequisite is not None:
-        attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite]))
+    # Check that the compulsory attributes are set properly
+    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+            isinstance(name, str) and len(name) > 0 and
+            isinstance(service_type, str) and len(service_type) > 0 and
+            isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
+        raise ValueError("Invalid service configuration. container_dn, name, and service_type must have "
+                         "non-empty string values. configuration must be a non-empty dictionary.")
 
     if define_access is True:
-        attribute_list.append(build_attribute(attr_type, 'eraccessoption', [2]))
+        if not (isinstance(access_name, str) and len(access_name) > 0):
+            raise ValueError("Invalid service configuration. A valid access name must be supplied if define_access "
+                             "is True.")
 
-        if access_name is None or access_name == "":
-            raise ValueError("A valid access name must be supplied if define_access is True.")
+    # If any values are set to None, they must be replaced with empty values. This is because these values will be
+    # passed to methods that interpret None as 'no change', whereas we want them to be explicitly set to empty values.
+    if description is None:
+        description = ""
 
-        attribute_list.append(build_attribute(attr_type, 'eraccessname', [access_name]))
-        attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [access_description]))
+    if owner is None:
+        owner = ""
 
-        if access_type is not None:
-            if access_type.lower() == "application":
-                attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["Application"]))
-            elif access_type.lower() == "sharedfolder":
-                attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["SharedFolder"]))
-            elif access_type.lower() == "emailgroup":
-                attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["MailGroup"]))
-            elif access_type.lower() == "role":
-                attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["AccessRole"]))
-            else:
-                raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
-                                               "'emailgroup', or 'role'.")
+    if service_prerequisite is None:
+        service_prerequisite = ""
+
+    if define_access is None:
+        define_access = False
+
+    if access_name is None:
+        access_name = ""
+
+    if access_type is None:
+        access_type = ""
+
+    if access_description is None:
+        access_description = ""
+
+    if access_image_uri is None:
+        access_image_uri = ""
+
+    if access_search_terms is None:
+        access_search_terms = []
+
+    if access_additional_info is None:
+        access_additional_info = ""
+
+    if access_badges is None:
+        access_badges = []
+
+    # Search for instances with the specified name in the specified container
+    search_response = search(
+        isim_application=isim_application,
+        container_dn=container_dn,
+        ldap_filter="(erservicename=" + name + ")"
+    )
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if search_response['rc'] != 0:
+        return search_response
+    search_results = search_response['data']
+
+    if len(search_results) == 0 or force:
+        # If there are no results, create a new service and return the response
+        if check_mode:
+            return create_return_object(changed=True)
         else:
-            # application is the default access type when it is not specified
-            attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["Application"]))
+            return _create_account_service(isim_application=isim_application,
+                                           container_dn=container_dn,
+                                           name=name,
+                                           service_type=service_type,
+                                           description=description,
+                                           owner=owner,
+                                           service_prerequisite=service_prerequisite,
+                                           define_access=define_access,
+                                           access_name=access_name,
+                                           access_type=access_type,
+                                           access_description=access_description,
+                                           access_image_uri=access_image_uri,
+                                           access_search_terms=access_search_terms,
+                                           access_additional_info=access_additional_info,
+                                           access_badges=access_badges,
+                                           configuration=configuration)
 
-        if access_image_uri is not None:
-            attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
+    elif len(search_results) == 1:
+        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+        # modify operation is required.
+        existing_service = search_results[0]
+        modify_required = False
 
-        attribute_list.append(build_attribute(attr_type, 'eraccesstag', access_search_terms))
+        existing_service_type = existing_service['profileName']
 
-        if access_additional_info is not None:
-            attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
+        if service_type != existing_service_type:
+            return create_return_object(changed=False,
+                                        warnings=["The service '" + name + "' in container '" + container_dn + "' is "
+                                                  "of service type '" + existing_service_type + "'. You can't change "
+                                                  "the service type to '" + service_type + "'. Create a new service "
+                                                  "with a different name instead."])
 
-        badges = []
+        existing_description = get_soap_attribute(existing_service, 'description')
+        if existing_description is None:
+            modify_required = True
+        elif description != existing_description[0]:
+            modify_required = True
+        else:
+            description = None  # set to None so that no change occurs
+
+        existing_owner = get_soap_attribute(existing_service, 'owner')
+        if existing_owner is None:
+            modify_required = True
+        elif owner != existing_owner[0]:
+            modify_required = True
+        else:
+            owner = None  # set to None so that no change occurs
+
+        existing_service_prerequisite = get_soap_attribute(existing_service, 'erprerequisite')
+        if existing_service_prerequisite is None:
+            modify_required = True
+        elif service_prerequisite != existing_service_prerequisite[0]:
+            modify_required = True
+        else:
+            service_prerequisite = None  # set to None so that no change occurs
+
+        existing_access_setting = get_soap_attribute(existing_service, 'eraccessoption')
+        if existing_access_setting is None:
+            if define_access is True:
+                modify_required = True
+            else:
+                define_access = None  # set to None so that no change occurs
+        elif not define_access and existing_access_setting[0] != '':
+            modify_required = True
+        elif define_access and existing_access_setting[0] != '2':
+            modify_required = True
+        else:
+            define_access = None  # set to None so that no change occurs
+
+        existing_access_name = get_soap_attribute(existing_service, 'eraccessname')
+        if existing_access_name is None:
+            modify_required = True
+        elif access_name != existing_access_name[0]:
+            modify_required = True
+        else:
+            access_name = None  # set to None so that no change occurs
+
+        existing_access_type = get_soap_attribute(existing_service, 'eraccesscategory')
+
+        if existing_access_type is None:
+            modify_required = True
+        elif access_type.lower() == "application":
+            if existing_access_type[0] != "Application":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "sharedfolder":
+            if existing_access_type[0] != "SharedFolder":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "emailgroup":
+            if existing_access_type[0] != "MailGroup":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+        elif access_type.lower() == "role":
+            if existing_access_type[0] != "AccessRole":
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
+
+        else:
+            raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
+                                           "'emailgroup', or 'role'.")
+
+        existing_access_description = get_soap_attribute(existing_service, 'eraccessdescription')
+        if existing_access_description is None:
+            modify_required = True
+        elif access_description != existing_access_description[0]:
+            modify_required = True
+        else:
+            access_description = None  # set to None so that no change occurs
+
+        existing_access_image_uri = get_soap_attribute(existing_service, 'erimageuri')
+        if existing_access_image_uri is None:
+            modify_required = True
+        elif access_image_uri != existing_access_image_uri[0]:
+            modify_required = True
+        else:
+            access_image_uri = None  # set to None so that no change occurs
+
+        existing_access_search_terms = get_soap_attribute(existing_service, 'eraccesstag')
+        if existing_access_search_terms is None:
+            modify_required = True
+        elif Counter(access_search_terms) != Counter(existing_access_search_terms):
+            modify_required = True
+        else:
+            access_search_terms = None  # set to None so that no change occurs
+
+        existing_access_additional_info = get_soap_attribute(existing_service, 'eradditionalinformation')
+        if existing_access_additional_info is None:
+            modify_required = True
+        elif access_additional_info != existing_access_additional_info[0]:
+            modify_required = True
+        else:
+            access_additional_info = None  # set to None so that no change occurs
+
+        existing_access_badges = get_soap_attribute(existing_service, 'erbadge')
+
+        new_badges = []
         for badge in access_badges:
-            badges.append(str(badge['text'] + "~" + badge['colour']))
-        attribute_list.append(build_attribute(attr_type, 'erbadge', badges))
+            new_badges.append(str(badge['text'] + "~" + badge['colour']))
 
-    data.append(attribute_list)
+        if existing_access_badges is None:
+            modify_required = True
+        elif Counter(new_badges) != Counter(existing_access_badges):
+            modify_required = True
+        else:
+            access_badges = None  # set to None so that no change occurs
 
-    # Invoke the call
-    ret_obj = isim_application.invoke_soap_request("Creating an account service",
-                                                   soap_service,
-                                                   "createService",
-                                                   data,
-                                                   requires_version=requires_version)
-    return ret_obj
+        # A list of attribute values which have been checked already. Also includes special attributes which should
+        # not be checked.
+        do_not_check = [
+            'description',
+            'owner',
+            'erprerequisite',
+            'eraccessoption',
+            'eraccessname',
+            'eraccesscategory',
+            'eraccessdescription',
+            'erimageuri',
+            'eraccesstag',
+            'eradditionalinformation',
+            'erbadge',
+            'eradapterprofileversion',
+            'eradapterlaststatustime',
+            'erparent',
+            'objectclass',
+            'erlastmodifiedtime',
+            'eradapteruptime',
+            'erglobalid',
+            'erservicename'
+        ]
+
+        # Iterate through each key in the service-specific configuration and check it against the same key in the
+        # existing service.
+        for key in configuration:
+            existing_value = get_soap_attribute(existing_service, key)
+            do_not_check.append(key.lower())  # mark the key as checked
+
+            if existing_value is None:
+                modify_required = True
+                continue
+
+            if type(configuration[key]) is list:
+                if Counter(configuration[key]) != Counter(existing_value):
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
+            else:
+                if configuration[key] != existing_value[0]:
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
+
+        # In addition to checking the service-specific attributes listed in the configuration dict, we also need to
+        # check for existing service-specific attributes which weren't listed in the configuration dict. These
+        # attributes are not part of the target configuration and must be explicitly set to empty values.
+
+        existing_keys = list_soap_attribute_keys(existing_service)
+        for key in existing_keys:
+            if key in do_not_check:
+                continue
+            configuration[key] = ""  # Set to an empty string so that the attribute is explicitly cleared
+
+        if modify_required:
+            if check_mode:
+                return create_return_object(changed=True)
+            else:
+                existing_dn = existing_service['itimDN']
+
+                return _modify_account_service(
+                    isim_application=isim_application,
+                    service_dn=existing_dn,
+                    description=description,
+                    owner=owner,
+                    service_prerequisite=service_prerequisite,
+                    define_access=define_access,
+                    access_name=access_name,
+                    access_type=access_type,
+                    access_description=access_description,
+                    access_image_uri=access_image_uri,
+                    access_search_terms=access_search_terms,
+                    access_additional_info=access_additional_info,
+                    access_badges=access_badges,
+                    configuration=configuration
+                )
+        else:
+            return create_return_object(changed=False)
+
+    else:
+        return create_return_object(changed=False, warnings=["More than one instance of the service '" + name + "' was "
+                                                             "found in container '" + container_dn + "'. No action "
+                                                             "was taken as it is unclear which service is being "
+                                                             "referred to."])
 
 
-def create_identity_feed(isim_application: ISIMApplication,
-                         container_dn: str,
-                         service_type: str,
-                         name: str,
-                         description: Optional[str],
-                         use_workflow: bool = False,
-                         evaluate_sod: bool = False,
-                         placement_rule: Optional[str] = None,
-                         configuration: Dict = {},
-                         check_mode=False,
-                         force=False):
+def apply_identity_feed(isim_application: ISIMApplication,
+                        container_dn: str,
+                        name: str,
+                        service_type: str,
+                        description: str = "",
+                        use_workflow: bool = False,
+                        evaluate_sod: bool = False,
+                        placement_rule: str = "",
+                        configuration: Dict = {},
+                        check_mode=False,
+                        force=False):
     """
-    Create an identity feed.
+    Apply an identity feed configuration. This function will dynamically choose whether to to create or modify based
+        on whether a service with the same name exists in the same container. Only attributes which differ from the
+        existing service will be changed. Note that encrypted attribute values such as passwords will always be updated
+        because there is no way to determine whether the new value matches the existing one. Note that the name and
+        container_dn of an existing service can't be changed because they are used to identify the service. If they
+        don't match an existing service, a new service will be created with the specified name and container_dn.
+        The service_type of an existing service cannot be changed either. To do this you will need to delete the old
+        service and create a new one.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param container_dn: The DN of the container (business unit) to create the feed under.
+    :param container_dn: The DN of the container (business unit) that the feed exists in.
+    :param name: The service name.
     :param service_type: The type of feed to create. Corresponds to the erobjectprofilename attribute in LDAP.
         Valid types out-of-the-box are: 'ADFeed' (AD OrganizationalPerson identity feed), 'CSVFeed' (Comma separated
         value identity feed), 'DSML2Service' (IDI data feed), 'DSMLInfo' (DSML identity feed), or 'RFC2798Feed'
         (iNetOrgPerson identity feed).
-    :param name: The service name.
     :param description: A description of the service.
     :param use_workflow: Set to True to use a workflow.
     :param evaluate_sod: Set to True to evaluate separation of duties policy when a workflow is used.
     :param placement_rule: The placement rule to use.
     :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
         being used to create the feed.
-    :param check_mode: Set to True to enable check mode
-    :param force: Set to True to force execution regardless of current state
+    :param check_mode: Set to True to enable check mode.
+    :param force: Set to True to force execution regardless of current state. This will always result in a new service
+        being created, regardless of whether a service with the same name in the same container already exists. Use with
+        caution.
+    :return: An IBMResponse object. If the call was successful, the data field will contain the DN of the service
+        that was created. If a modify request was used, the data field will be empty.
+    """
+
+    # Check that the compulsory attributes are set properly
+    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+            isinstance(name, str) and len(name) > 0 and
+            isinstance(service_type, str) and len(service_type) > 0 and
+            isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
+        raise ValueError("Invalid service configuration. container_dn, name, and service_type must have "
+                         "non-empty string values. configuration must be a non-empty dictionary.")
+
+    # If any values are set to None, they must be replaced with empty values. This is because these values will be
+    # passed to methods that interpret None as 'no change', whereas we want them to be explicitly set to empty values.
+    if description is None:
+        description = ""
+
+    if use_workflow is None:
+        use_workflow = False
+
+    if evaluate_sod is None:
+        evaluate_sod = False
+
+    if placement_rule is None:
+        placement_rule = ""
+
+    # Search for instances with the specified name in the specified container
+    search_response = search(
+        isim_application=isim_application,
+        container_dn=container_dn,
+        ldap_filter="(erservicename=" + name + ")"
+    )
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if search_response['rc'] != 0:
+        return search_response
+    search_results = search_response['data']
+
+    if len(search_results) == 0 or force:
+        # If there are no results, create a new feed and return the response
+        if check_mode:
+            return create_return_object(changed=True)
+        else:
+            return _create_identity_feed(isim_application=isim_application,
+                                         container_dn=container_dn,
+                                         name=name,
+                                         service_type=service_type,
+                                         description=description,
+                                         use_workflow=use_workflow,
+                                         evaluate_sod=evaluate_sod,
+                                         placement_rule=placement_rule,
+                                         configuration=configuration)
+
+    elif len(search_results) == 1:
+        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+        # modify operation is required.
+        existing_service = search_results[0]
+        modify_required = False
+
+        existing_service_type = existing_service['profileName']
+
+        if service_type != existing_service_type:
+            return create_return_object(changed=False,
+                                        warnings=["The service '" + name + "' in container '" + container_dn + "' is "
+                                                  "of service type '" + existing_service_type + "'. You can't change "
+                                                  "the service type to '" + service_type + "'. Create a new service "
+                                                  "with a different name instead."])
+
+        existing_description = get_soap_attribute(existing_service, 'description')
+        if existing_description is None:
+            modify_required = True
+        elif description != existing_description[0]:
+            modify_required = True
+        else:
+            description = None  # set to None so that no change occurs
+
+        existing_use_workflow = get_soap_attribute(existing_service, 'eruseworkflow')
+        if existing_use_workflow is None:
+            modify_required = True
+        elif use_workflow and existing_use_workflow[0] != 'True':
+            modify_required = True
+        elif not use_workflow and existing_use_workflow[0] != 'False':
+            modify_required = True
+        else:
+            use_workflow = None  # set to None so that no change occurs
+
+        existing_evaluate_sod = get_soap_attribute(existing_service, 'erevaluatesod')
+        if existing_evaluate_sod is None:
+            modify_required = True
+        elif evaluate_sod and existing_evaluate_sod[0] != 'True':
+            modify_required = True
+        elif not evaluate_sod and existing_evaluate_sod[0] != 'False':
+            modify_required = True
+        else:
+            evaluate_sod = None  # set to None so that no change occurs
+
+        existing_placement_rule = get_soap_attribute(existing_service, 'erplacementrule')
+        if existing_placement_rule is None:
+            modify_required = True
+        elif placement_rule != existing_placement_rule[0]:
+            modify_required = True
+        else:
+            placement_rule = None  # set to None so that no change occurs
+
+        # A list of attribute values which have been checked already. Also includes special attributes which should
+        # not be checked.
+        do_not_check = [
+            'description',
+            'eruseworkflow',
+            'erevaluatesod',
+            'erplacementrule',
+            'eradapterprofileversion',
+            'eradapterlaststatustime',
+            'erparent',
+            'objectclass',
+            'erlastmodifiedtime',
+            'eradapteruptime',
+            'erglobalid',
+            'erservicename'
+        ]
+
+        # Iterate through each key in the service-specific configuration and check it against the same key in the
+        # existing service.
+        for key in configuration:
+            existing_value = get_soap_attribute(existing_service, key)
+            do_not_check.append(key.lower())  # mark the key as checked
+
+            if existing_value is None:
+                modify_required = True
+                continue
+
+            if type(configuration[key]) is list:
+                if Counter(configuration[key]) != Counter(existing_value):
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
+            else:
+                if configuration[key] != existing_value[0]:
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
+
+        # In addition to checking the service-specific attributes listed in the configuration dict, we also need to
+        # check for existing service-specific attributes which weren't listed in the configuration dict. These
+        # attributes are not part of the target configuration and must be explicitly set to empty values.
+
+        existing_keys = list_soap_attribute_keys(existing_service)
+        for key in existing_keys:
+            if key in do_not_check:
+                continue
+            configuration[key] = ""  # Set to an empty string so that the attribute is explicitly cleared
+
+        if modify_required:
+            if check_mode:
+                return create_return_object(changed=True)
+            else:
+                existing_dn = existing_service['itimDN']
+
+                return _modify_identity_feed(
+                    isim_application=isim_application,
+                    service_dn=existing_dn,
+                    description=description,
+                    use_workflow=use_workflow,
+                    evaluate_sod=evaluate_sod,
+                    placement_rule=placement_rule,
+                    configuration=configuration
+                )
+        else:
+            return create_return_object(changed=False)
+
+    else:
+        return create_return_object(changed=False, warnings=["More than one instance of the service '" + name + "' was "
+                                                             "found in container '" + container_dn + "'. No action "
+                                                             "was taken as it is unclear which service is being "
+                                                             "referred to."])
+
+
+def _create_account_service(isim_application: ISIMApplication,
+                            container_dn: str,
+                            name: str,
+                            service_type: str,
+                            description: str = "",
+                            owner: str = "",
+                            service_prerequisite: str = "",
+                            define_access: bool = False,
+                            access_name: str = "",
+                            access_type: str = "",
+                            access_description: str = "",
+                            access_image_uri: str = "",
+                            access_search_terms: List[str] = [],
+                            access_additional_info: str = "",
+                            access_badges: List[Dict[str, str]] = [],
+                            configuration: Dict = {}) -> IBMResponse:
+    """
+    Create an account service.
+    :param isim_application: The ISIMApplication instance to connect to.
+    :param container_dn: The DN of the container (business unit) to create the service under.
+    :param name: The service name.
+    :param service_type: The type of service to create. Corresponds to the erobjectprofilename attribute in LDAP.
+        Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
+        'PosixLinuxProfile', 'PosixSolarisProfile', 'WinLocalProfile', or 'HostedService'.
+    :param description: A description of the service.
+    :param owner: A DN corresponding to the user that owns the service.
+    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param define_access: Set to True to define an access for the service.
+    :param access_name: A name for the access.
+    :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
+    :param access_description: A description for the access.
+    :param access_image_uri: The URI of an image to use for the access icon.
+    :param access_search_terms: A list of search terms for the access.
+    :param access_additional_info: Additional information about the acceess.
+    :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
+        keys 'text' and 'colour' with string values.
+    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
+        being used to create the service.
     :return: An IBMResponse object. If the call was successful, the data field will contain the DN of the service
         that was created.
     """
@@ -232,46 +696,6 @@ def create_identity_feed(isim_application: ISIMApplication,
         return attribute_type_response
     attr_type = attribute_type_response['data']
 
-    attribute_list, data = _initiate_create(attr_type,
-                                            container_dn,
-                                            service_type,
-                                            name,
-                                            description,
-                                            configuration)
-
-    attribute_list.append(build_attribute(attr_type, 'eruseworkflow', [use_workflow]))
-    attribute_list.append(build_attribute(attr_type, 'erevaluatesod', [evaluate_sod]))
-    if placement_rule is not None:
-        attribute_list.append(build_attribute(attr_type, 'erplacementrule', [placement_rule]))
-
-    data.append(attribute_list)
-
-    # Invoke the call
-    ret_obj = isim_application.invoke_soap_request("Creating an account service",
-                                                   soap_service,
-                                                   "createService",
-                                                   data,
-                                                   requires_version=requires_version)
-    return ret_obj
-
-
-def _initiate_create(attr_type,
-                     container_dn: str,
-                     service_type: str,
-                     name: str,
-                     description: Optional[str],
-                     configuration: Dict = {}):
-    """
-    Initiate the creation of a generic service.
-    :param attr_type: The SOAP type to use for creating attributes.
-    :param container_dn: The DN of the container (business unit) to create the feed under.
-    :param service_type: The type of feed to create. Corresponds to the erobjectprofilename attribute in LDAP.
-    :param name: The service name.
-    :param description: A description of the service.
-    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
-        being used to create the feed.
-    :return: The partially constructed attribute list and the partially constructed data object.
-    """
     data = []
 
     # Add the container DN to the request
@@ -280,19 +704,369 @@ def _initiate_create(attr_type,
     # Add the profile name to the request
     data.append(str(service_type))
 
-    # Populate the service attributes
+    attribute_list = _build_service_attributes_list(attr_type,
+                                                    name=name,
+                                                    description=description,
+                                                    owner=owner,
+                                                    service_prerequisite=service_prerequisite,
+                                                    define_access=define_access,
+                                                    access_name=access_name,
+                                                    access_type=access_type,
+                                                    access_description=access_description,
+                                                    access_image_uri=access_image_uri,
+                                                    access_search_terms=access_search_terms,
+                                                    access_additional_info=access_additional_info,
+                                                    access_badges=access_badges,
+                                                    use_workflow=None,
+                                                    evaluate_sod=None,
+                                                    placement_rule=None,
+                                                    configuration=configuration)
+
+    data.append(attribute_list)
+
+    # Invoke the call
+    ret_obj = isim_application.invoke_soap_request("Creating an account service",
+                                                   soap_service,
+                                                   "createService",
+                                                   data,
+                                                   requires_version=requires_version)
+    return ret_obj
+
+
+def _modify_account_service(isim_application: ISIMApplication,
+                            service_dn: str,
+                            description: Optional[str] = None,
+                            owner: Optional[str] = None,
+                            service_prerequisite: Optional[str] = None,
+                            define_access: Optional[bool] = None,
+                            access_name: Optional[str] = None,
+                            access_type: Optional[str] = None,
+                            access_description: Optional[str] = None,
+                            access_image_uri: Optional[str] = None,
+                            access_search_terms: Optional[List[str]] = None,
+                            access_additional_info: Optional[str] = None,
+                            access_badges: Optional[List[Dict[str, str]]] = None,
+                            configuration: Optional[Dict] = None) -> IBMResponse:
+    """
+    Modify the attributes of an existing account service. Only arguments with a value will be changed. Any arguments
+        set to None will be left as they are. This applies to the keys in the service-specific configuration dict as
+        well. You must explicitly set them to empty values to remove keys.
+    :param isim_application: The ISIMApplication instance to connect to.
+    :param service_dn: The DN of the existing account service to modify.
+    :param description: A description of the service.
+    :param owner: A DN corresponding to the user that owns the service.
+    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param define_access: Set to True to define an access for the service.
+    :param access_name: A name for the access.
+    :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
+    :param access_description: A description for the access.
+    :param access_image_uri: The URI of an image to use for the access icon.
+    :param access_search_terms: A list of search terms for the access.
+    :param access_additional_info: Additional information about the acceess.
+    :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
+        keys 'text' and 'colour' with string values.
+    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
+        being used to create the service.
+    :return: An IBMResponse object. If the call was successful, the data field will be empty.
+    """
+    # Retrieve the attribute type
+    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
+                                                                  "ns1:WSAttribute",
+                                                                  requires_version=requires_version)
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if attribute_type_response['rc'] != 0:
+        return attribute_type_response
+    attr_type = attribute_type_response['data']
+
+    data = []
+
+    # Add the service DN to the request
+    data.append(service_dn)
+
+    # Setup the list of modified attributes and add them to the request
+    attribute_list = _build_service_attributes_list(attr_type,
+                                                    name=None,
+                                                    description=description,
+                                                    owner=owner,
+                                                    service_prerequisite=service_prerequisite,
+                                                    define_access=define_access,
+                                                    access_name=access_name,
+                                                    access_type=access_type,
+                                                    access_description=access_description,
+                                                    access_image_uri=access_image_uri,
+                                                    access_search_terms=access_search_terms,
+                                                    access_additional_info=access_additional_info,
+                                                    access_badges=access_badges,
+                                                    use_workflow=None,
+                                                    evaluate_sod=None,
+                                                    placement_rule=None,
+                                                    configuration=configuration)
+
+    data.append(attribute_list)
+
+    # Invoke the call
+    ret_obj = isim_application.invoke_soap_request("Modifying an account service",
+                                                   soap_service,
+                                                   "modifyService",
+                                                   data,
+                                                   requires_version=requires_version)
+    return ret_obj
+
+
+def _create_identity_feed(isim_application: ISIMApplication,
+                          container_dn: str,
+                          name: str,
+                          service_type: str,
+                          description: str = "",
+                          use_workflow: bool = False,
+                          evaluate_sod: bool = False,
+                          placement_rule: str = "",
+                          configuration: Dict = {}) -> IBMResponse:
+    """
+    Create an identity feed.
+    :param isim_application: The ISIMApplication instance to connect to.
+    :param container_dn: The DN of the container (business unit) to create the feed under.
+    :param name: The service name.
+    :param service_type: The type of feed to create. Corresponds to the erobjectprofilename attribute in LDAP.
+        Valid types out-of-the-box are: 'ADFeed' (AD OrganizationalPerson identity feed), 'CSVFeed' (Comma separated
+        value identity feed), 'DSML2Service' (IDI data feed), 'DSMLInfo' (DSML identity feed), or 'RFC2798Feed'
+        (iNetOrgPerson identity feed).
+    :param description: A description of the service.
+    :param use_workflow: Set to True to use a workflow.
+    :param evaluate_sod: Set to True to evaluate separation of duties policy when a workflow is used.
+    :param placement_rule: The placement rule to use.
+    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
+        being used to create the feed.
+    :return: An IBMResponse object. If the call was successful, the data field will contain the DN of the service
+        that was created.
+    """
+    # Get the required SOAP types
+    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
+                                                                  "ns1:WSAttribute",
+                                                                  requires_version=requires_version)
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if attribute_type_response['rc'] != 0:
+        return attribute_type_response
+    attr_type = attribute_type_response['data']
+
+    data = []
+
+    # Add the container DN to the request
+    data.append(str(container_dn))
+
+    # Add the profile name to the request
+    data.append(str(service_type))
+
+    attribute_list = _build_service_attributes_list(attr_type,
+                                                    name=name,
+                                                    description=description,
+                                                    owner=None,
+                                                    service_prerequisite=None,
+                                                    define_access=None,
+                                                    access_name=None,
+                                                    access_type=None,
+                                                    access_description=None,
+                                                    access_image_uri=None,
+                                                    access_search_terms=None,
+                                                    access_additional_info=None,
+                                                    access_badges=None,
+                                                    use_workflow=use_workflow,
+                                                    evaluate_sod=evaluate_sod,
+                                                    placement_rule=placement_rule,
+                                                    configuration=configuration)
+
+    data.append(attribute_list)
+
+    # Invoke the call
+    ret_obj = isim_application.invoke_soap_request("Creating an identity feed",
+                                                   soap_service,
+                                                   "createService",
+                                                   data,
+                                                   requires_version=requires_version)
+    return ret_obj
+
+
+def _modify_identity_feed(isim_application: ISIMApplication,
+                          service_dn: str,
+                          description: Optional[str] = None,
+                          use_workflow: Optional[bool] = None,
+                          evaluate_sod: Optional[bool] = None,
+                          placement_rule: Optional[str] = None,
+                          configuration: Optional[Dict] = None) -> IBMResponse:
+    """
+    Modify the attributes of an existing identity feed. Only arguments with a value will be changed. Any arguments
+        set to None will be left as they are. This applies to the keys in the service-specific configuration dict as
+        well. You must explicitly set them to empty values to remove keys.
+    :param isim_application: The ISIMApplication instance to connect to.
+    :param service_dn: The DN of the existing account service to modify.
+    :param description: A description of the service.
+    :param use_workflow: Set to True to use a workflow.
+    :param evaluate_sod: Set to True to evaluate separation of duties policy when a workflow is used.
+    :param placement_rule: The placement rule to use.
+    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
+        being used to create the feed.
+    :return: An IBMResponse object. If the call was successful, the data field will be empty.
+    """
+    # Retrieve the attribute type
+    attribute_type_response = isim_application.retrieve_soap_type(soap_service,
+                                                                  "ns1:WSAttribute",
+                                                                  requires_version=requires_version)
+    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
+    if attribute_type_response['rc'] != 0:
+        return attribute_type_response
+    attr_type = attribute_type_response['data']
+
+    data = []
+
+    # Add the service DN to the request
+    data.append(service_dn)
+
+    attribute_list = _build_service_attributes_list(attr_type,
+                                                    name=None,
+                                                    description=description,
+                                                    owner=None,
+                                                    service_prerequisite=None,
+                                                    define_access=None,
+                                                    access_name=None,
+                                                    access_type=None,
+                                                    access_description=None,
+                                                    access_image_uri=None,
+                                                    access_search_terms=None,
+                                                    access_additional_info=None,
+                                                    access_badges=None,
+                                                    use_workflow=use_workflow,
+                                                    evaluate_sod=evaluate_sod,
+                                                    placement_rule=placement_rule,
+                                                    configuration=configuration)
+
+    data.append(attribute_list)
+
+    # Invoke the call
+    ret_obj = isim_application.invoke_soap_request("Modifying an identity feed",
+                                                   soap_service,
+                                                   "modifyService",
+                                                   data,
+                                                   requires_version=requires_version)
+    return ret_obj
+
+
+def _build_service_attributes_list(attr_type,
+                                   name: Optional[str] = None,
+                                   description: Optional[str] = None,
+                                   owner: Optional[str] = None,
+                                   service_prerequisite: Optional[str] = None,
+                                   define_access: Optional[bool] = None,
+                                   access_name: Optional[str] = None,
+                                   access_type: Optional[str] = None,
+                                   access_description: Optional[str] = None,
+                                   access_image_uri: Optional[str] = None,
+                                   access_search_terms: Optional[List[str]] = None,
+                                   access_additional_info: Optional[str] = None,
+                                   access_badges: Optional[List[Dict[str, str]]] = None,
+                                   use_workflow: Optional[bool] = None,
+                                   evaluate_sod: Optional[bool] = None,
+                                   placement_rule: Optional[str] = None,
+                                   configuration: Optional[Dict] = None) -> List:
+    """
+    Build a list of attributes to be passed in a SOAP request. Used by the _create and _modify functions. Only
+        arguments with a value will be set. Any arguments set to None will be left as they are. To set an attribute
+        to an empty value, use an empty string or empty list. This function sets all attributes that can be passed to
+        the modifyService API, regardless of whether they are for an account service or an identity feed.
+    :param attr_type: The SOAP type that can be used to instantiate the an attribute object.
+    :param name: The service name.
+    :param description: A description of the service.
+    :param owner: A DN corresponding to the user that owns the service.
+    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param define_access: Set to True to define an access for the service.
+    :param access_name: A name for the access.
+    :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
+    :param access_description: A description for the access.
+    :param access_image_uri: The URI of an image to use for the access icon.
+    :param access_search_terms: A list of search terms for the access.
+    :param access_additional_info: Additional information about the acceess.
+    :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
+        keys 'text' and 'colour' with string values.
+    :param use_workflow: Set to True to use a workflow.
+    :param evaluate_sod: Set to True to evaluate separation of duties policy when a workflow is used.
+    :param placement_rule: The placement rule to use.
+    :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
+        being used to create the feed.
+    :return: A list of attributes formatted to be passed to the SOAP API.
+    """
     attribute_list = []
 
-    attribute_list.append(build_attribute(attr_type, 'erservicename', [name]))
+    # Setup the attributes common to all services
+    if name is not None:
+        attribute_list.append(build_attribute(attr_type, 'erservicename', [name]))
 
     if description is not None:
         attribute_list.append(build_attribute(attr_type, 'description', [description]))
 
-    # add the profile specific attributes
-    for key in configuration:
-        if type(configuration[key]) is list:
-            attribute_list.append(build_attribute(attr_type, key, configuration[key]))
-        else:
-            attribute_list.append(build_attribute(attr_type, key, [configuration[key]]))
+    # Add the profile specific attributes
+    if configuration is not None:
+        for key in configuration:
+            if configuration[key] is not None:
+                if type(configuration[key]) is list:
+                    attribute_list.append(build_attribute(attr_type, key, configuration[key]))
+                else:
+                    attribute_list.append(build_attribute(attr_type, key, [configuration[key]]))
 
-    return attribute_list, data
+    # Setup the attributes for an account service
+    if owner is not None:
+        attribute_list.append(build_attribute(attr_type, 'owner', [owner]))
+
+    if service_prerequisite is not None:
+        attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite]))
+
+    if define_access is not None:
+        # eraccessoption must be set to 2 to enable access, or empty to disable it
+        if define_access is True:
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', ["2"]))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', [""]))
+
+    if access_name is not None:
+        attribute_list.append(build_attribute(attr_type, 'eraccessname', [access_name]))
+
+    if access_description is not None:
+        attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [access_description]))
+
+    if access_type is not None:
+        if access_type.lower() == "application":
+            attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["Application"]))
+        elif access_type.lower() == "sharedfolder":
+            attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["SharedFolder"]))
+        elif access_type.lower() == "emailgroup":
+            attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["MailGroup"]))
+        elif access_type.lower() == "role":
+            attribute_list.append(build_attribute(attr_type, 'eraccesscategory', ["AccessRole"]))
+        else:
+            raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
+                                           "'emailgroup', or 'role'.")
+
+    if access_image_uri is not None:
+        attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
+
+    if access_search_terms is not None:
+        attribute_list.append(build_attribute(attr_type, 'eraccesstag', access_search_terms))
+
+    if access_additional_info is not None:
+        attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
+
+    if access_badges is not None:
+        badges = []
+        for badge in access_badges:
+            badges.append(str(badge['text'] + "~" + badge['colour']))
+        attribute_list.append(build_attribute(attr_type, 'erbadge', badges))
+
+    # Setup the attributes for an identity feed
+    if use_workflow is not None:
+        attribute_list.append(build_attribute(attr_type, 'eruseworkflow', [use_workflow]))
+
+    if evaluate_sod is not None:
+        attribute_list.append(build_attribute(attr_type, 'erevaluatesod', [evaluate_sod]))
+
+    if placement_rule is not None:
+        attribute_list.append(build_attribute(attr_type, 'erplacementrule', [placement_rule]))
+
+    return attribute_list

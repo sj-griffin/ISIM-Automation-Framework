@@ -2,7 +2,7 @@ from typing import List, Dict, Optional
 from collections import Counter
 import logging
 from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
-from isimws.utilities.tools import build_attribute
+from isimws.utilities.tools import build_attribute, get_soap_attribute
 import isimws
 
 logger = logging.getLogger(__name__)
@@ -105,12 +105,13 @@ def apply(isim_application: ISIMApplication,
           check_mode=False,
           force=False) -> IBMResponse:
     """
-    Set a Role. This function will dynamically choose whether to to create or modify based on whether a role with the
-        same name exists in the same container. Only attributes which differ from the existing role will be changed.
-        Note that the name and container_dn of an existing role can't be changed because they are used to identify the
-        role. If they don't match an existing role, a new role will be created with the specified name and container_dn.
+    Apply a role configuration. This function will dynamically choose whether to to create or modify based on whether
+        a role with the same name exists in the same container. Only attributes which differ from the existing role
+        will be changed. Note that the name and container_dn of an existing role can't be changed because they are
+        used to identify the role. If they don't match an existing role, a new role will be created with the specified
+        name and container_dn.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param container_dn: The DN of the container (business unit) to create the role under.
+    :param container_dn: The DN of the container (business unit) that the role exists in.
     :param name: The role name.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
@@ -214,7 +215,7 @@ def apply(isim_application: ISIMApplication,
         existing_role = search_results[0]
         modify_required = False
 
-        existing_role_classification = _get_role_attribute(existing_role, 'erroleclassification')
+        existing_role_classification = get_soap_attribute(existing_role, 'erroleclassification')
 
         if existing_role_classification is None:
             modify_required = True
@@ -232,7 +233,7 @@ def apply(isim_application: ISIMApplication,
             raise ValueError(role_classification + "is not a valid role classification. Must be 'application' or "
                                                    "'business'.")
 
-        existing_description = _get_role_attribute(existing_role, 'description')
+        existing_description = get_soap_attribute(existing_role, 'description')
         if existing_description is None:
             modify_required = True
         elif description != existing_role['description'] or description != existing_description[0]:
@@ -240,7 +241,7 @@ def apply(isim_application: ISIMApplication,
         else:
             description = None  # set to None so that no change occurs
 
-        existing_owners = _get_role_attribute(existing_role, 'owner')
+        existing_owners = get_soap_attribute(existing_role, 'owner')
         new_owners = role_owners + user_owners
         if existing_owners is None:
             modify_required = True
@@ -251,7 +252,7 @@ def apply(isim_application: ISIMApplication,
             role_owners = None
             user_owners = None
 
-        existing_access_setting = _get_role_attribute(existing_role, 'eraccessoption')
+        existing_access_setting = get_soap_attribute(existing_role, 'eraccessoption')
         if existing_access_setting is None:
             modify_required = True
         elif not enable_access and existing_access_setting[0] != '1':
@@ -265,7 +266,7 @@ def apply(isim_application: ISIMApplication,
             enable_access = None
             common_access = None
 
-        existing_access_type = _get_role_attribute(existing_role, 'erobjectprofilename')
+        existing_access_type = get_soap_attribute(existing_role, 'erobjectprofilename')
 
         if existing_access_type is None:
             modify_required = True
@@ -294,19 +295,18 @@ def apply(isim_application: ISIMApplication,
             raise ValueError(access_type + "is not a valid access type. Must be 'application', 'sharedfolder', "
                                            "'emailgroup', or 'role'.")
 
-        existing_access_image_uri = _get_role_attribute(existing_role, 'erimageuri')
+        existing_access_image_uri = get_soap_attribute(existing_role, 'erimageuri')
         if existing_access_image_uri is None:
             if access_image_uri != "":
                 modify_required = True
             else:
-                print("TRIGGERED")
                 access_image_uri = None  # set to None so that no change occurs
         elif access_image_uri != existing_access_image_uri[0]:
             modify_required = True
         else:
             access_image_uri = None  # set to None so that no change occurs
 
-        existing_access_search_terms = _get_role_attribute(existing_role, 'eraccesstag')
+        existing_access_search_terms = get_soap_attribute(existing_role, 'eraccesstag')
         if existing_access_search_terms is None:
             modify_required = True
         elif Counter(access_search_terms) != Counter(existing_access_search_terms):
@@ -314,7 +314,7 @@ def apply(isim_application: ISIMApplication,
         else:
             access_search_terms = None  # set to None so that no change occurs
 
-        existing_access_additional_info = _get_role_attribute(existing_role, 'eradditionalinformation')
+        existing_access_additional_info = get_soap_attribute(existing_role, 'eradditionalinformation')
         if existing_access_additional_info is None:
             modify_required = True
         elif access_additional_info != existing_access_additional_info[0]:
@@ -322,7 +322,7 @@ def apply(isim_application: ISIMApplication,
         else:
             access_additional_info = None  # set to None so that no change occurs
 
-        existing_access_badges = _get_role_attribute(existing_role, 'erbadge')
+        existing_access_badges = get_soap_attribute(existing_role, 'erbadge')
 
         new_badges = []
         for badge in access_badges:
@@ -335,7 +335,7 @@ def apply(isim_application: ISIMApplication,
         else:
             access_badges = None  # set to None so that no change occurs
 
-        existing_assignment_attributes = _get_role_attribute(existing_role, 'erroleassignmentkey')
+        existing_assignment_attributes = get_soap_attribute(existing_role, 'erroleassignmentkey')
         if existing_assignment_attributes is None:
             modify_required = True
         elif Counter(assignment_attributes) != Counter(existing_assignment_attributes):
@@ -587,7 +587,7 @@ def _build_role_attributes_list(
     :param access_badges: A list of dicts representing badges for the access. Each entry in the list must contain the
         keys 'text' and 'colour' with string values.
     :param assignment_attributes: A list of attribute names to assign to the role.
-    :return:
+    :return: A list of attributes formatted to be passed to the SOAP API.
     """
 
     print ("TYPE: " + str(type(attr_type)))
@@ -658,20 +658,3 @@ def _build_role_attributes_list(
 
     return attribute_list
 
-
-def _get_role_attribute(role_object: Dict, key: str) -> Optional[List]:
-    """
-    A method to simplify parsing of the roles returned by the SOAP API. This is only for attributes stored in the
-        role's 'attributes' list. The attributes 'select', 'name', 'itimDN' and 'description' aren't part of this list
-        and can be referenced by their keys.
-    :param role_object: An OrderedDict representing a role as returned by the get and search calls.
-    :param key: The name of a key to retrieve.
-    :return: A list of values for the requested key, or None if the key doesn't exist.
-    """
-    attributes = role_object['attributes']['item']
-
-    for attribute in attributes:
-        if attribute['name'] == key:
-            return attribute['values']['item']
-
-    return None
