@@ -91,17 +91,17 @@ def apply(isim_application: ISIMApplication,
           container_dn: str,
           name: str,
           role_classification: str,
-          description: str = "",
-          role_owners: List[str] = [],
-          user_owners: List[str] = [],
+          description: Optional[str] = None,
+          role_owners: Optional[List[str]] = None,
+          user_owners: Optional[List[str]] = None,
           enable_access: bool = False,
           common_access: bool = False,
-          access_type: str = "",
-          access_image_uri: str = "",
-          access_search_terms: List[str] = [],
-          access_additional_info: str = "",
-          access_badges: List[Dict[str, str]] = [],
-          assignment_attributes: List[str] = [],
+          access_type: Optional[str] = None,
+          access_image_uri: Optional[str] = None,
+          access_search_terms: Optional[List[str]] = None,
+          access_additional_info: Optional[str] = None,
+          access_badges: Optional[List[Dict[str, str]]] = None,
+          assignment_attributes: Optional[List[str]] = None,
           check_mode=False,
           force=False) -> IBMResponse:
     """
@@ -235,7 +235,10 @@ def apply(isim_application: ISIMApplication,
 
         existing_description = get_soap_attribute(existing_role, 'description')
         if existing_description is None:
-            modify_required = True
+            if description != '':
+                modify_required = True
+            else:
+                description = None  # set to None so that no change occurs
         elif description != existing_role['description'] or description != existing_description[0]:
             modify_required = True
         else:
@@ -244,7 +247,12 @@ def apply(isim_application: ISIMApplication,
         existing_owners = get_soap_attribute(existing_role, 'owner')
         new_owners = role_owners + user_owners
         if existing_owners is None:
-            modify_required = True
+            if new_owners != []:
+                modify_required = True
+            else:
+                # set to None so that no change occurs
+                role_owners = None
+                user_owners = None
         elif Counter(new_owners) != Counter(existing_owners):
             modify_required = True
         else:
@@ -269,7 +277,10 @@ def apply(isim_application: ISIMApplication,
         existing_access_type = get_soap_attribute(existing_role, 'erobjectprofilename')
 
         if existing_access_type is None:
-            modify_required = True
+            if access_type != '':
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
         elif access_type.lower() == "application":
             if existing_access_type[0] != "Application":
                 modify_required = True
@@ -297,7 +308,7 @@ def apply(isim_application: ISIMApplication,
 
         existing_access_image_uri = get_soap_attribute(existing_role, 'erimageuri')
         if existing_access_image_uri is None:
-            if access_image_uri != "":
+            if access_image_uri != '':
                 modify_required = True
             else:
                 access_image_uri = None  # set to None so that no change occurs
@@ -308,7 +319,10 @@ def apply(isim_application: ISIMApplication,
 
         existing_access_search_terms = get_soap_attribute(existing_role, 'eraccesstag')
         if existing_access_search_terms is None:
-            modify_required = True
+            if access_search_terms != []:
+                modify_required = True
+            else:
+                access_search_terms = None  # set to None so that no change occurs
         elif Counter(access_search_terms) != Counter(existing_access_search_terms):
             modify_required = True
         else:
@@ -316,7 +330,10 @@ def apply(isim_application: ISIMApplication,
 
         existing_access_additional_info = get_soap_attribute(existing_role, 'eradditionalinformation')
         if existing_access_additional_info is None:
-            modify_required = True
+            if access_additional_info != '':
+                modify_required = True
+            else:
+                access_additional_info = None  # set to None so that no change occurs
         elif access_additional_info != existing_access_additional_info[0]:
             modify_required = True
         else:
@@ -329,7 +346,10 @@ def apply(isim_application: ISIMApplication,
             new_badges.append(str(badge['text'] + "~" + badge['colour']))
 
         if existing_access_badges is None:
-            modify_required = True
+            if new_badges != []:
+                modify_required = True
+            else:
+                access_badges = None  # set to None so that no change occurs
         elif Counter(new_badges) != Counter(existing_access_badges):
             modify_required = True
         else:
@@ -337,7 +357,10 @@ def apply(isim_application: ISIMApplication,
 
         existing_assignment_attributes = get_soap_attribute(existing_role, 'erroleassignmentkey')
         if existing_assignment_attributes is None:
-            modify_required = True
+            if assignment_attributes != []:
+                modify_required = True
+            else:
+                assignment_attributes = None  # set to None so that no change occurs
         elif Counter(assignment_attributes) != Counter(existing_assignment_attributes):
             modify_required = True
         else:
@@ -590,11 +613,15 @@ def _build_role_attributes_list(
     :return: A list of attributes formatted to be passed to the SOAP API.
     """
 
-    print ("TYPE: " + str(type(attr_type)))
     attribute_list = []
 
     if description is not None:
-        attribute_list.append(build_attribute(attr_type, 'description', [description]))
+        if description == '':
+            attribute_list.append(build_attribute(attr_type, 'description', []))
+            attribute_list.append(build_attribute(attr_type, 'eraccessdescription', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'description', [description]))
+            attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [description]))
 
     if role_classification is not None:
         if role_classification.lower() == "application":
@@ -615,15 +642,12 @@ def _build_role_attributes_list(
 
     if enable_access is not None:
         if enable_access is False:
-            attribute_list.append(build_attribute(attr_type, 'eraccessoption', [1]))
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', ["1"]))
         else:
             if common_access is False:
-                attribute_list.append(build_attribute(attr_type, 'eraccessoption', [2]))
+                attribute_list.append(build_attribute(attr_type, 'eraccessoption', ["2"]))
             elif common_access is True:
-                attribute_list.append(build_attribute(attr_type, 'eraccessoption', [3]))
-
-    if description is not None:
-        attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [description]))
+                attribute_list.append(build_attribute(attr_type, 'eraccessoption', ["3"]))
 
     if access_type is not None:
         if access_type.lower() == "application":
@@ -639,13 +663,19 @@ def _build_role_attributes_list(
                                            "'emailgroup', or 'role'.")
 
     if access_image_uri is not None:
-        attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
+        if access_image_uri == '':
+            attribute_list.append(build_attribute(attr_type, 'erimageuri', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
 
     if access_search_terms is not None:
         attribute_list.append(build_attribute(attr_type, 'eraccesstag', access_search_terms))
 
     if access_additional_info is not None:
-        attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
+        if access_additional_info == '':
+            attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
 
     if access_badges is not None:
         badges = []

@@ -52,7 +52,7 @@ def build_attribute(attribute_type, key: str, value_list: List):
     Build a SOAP ns1:WSAttribute object.
     :param attribute_type: The SOAP type that can be used to instantiate the object.
     :param key: Attribute key
-    :param value_list: List of attribute values
+    :param value_list: List of attribute values. Provide an empty list to set the value to an empty value.
     :return: The Python representation of the SOAP object.
     """
     attr = attribute_type()

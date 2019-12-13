@@ -17,14 +17,18 @@ from isimws.user.isimapplicationuser import ISIMApplicationUser
 
 # Zeep plugin used to extract the XML payload for use in debugging
 class ZeepLoggingPlugin(Plugin):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        super().__init__()
+
     def ingress(self, envelope, http_headers, operation):
-        # print("ENVELOPE: ")
         # print(etree.tostring(envelope))
+        # self.logger.debug(etree.tostring(envelope))
         return envelope, http_headers
 
     def egress(self, envelope, http_headers, operation, binding_options):
-        # print("ENVELOPE: ")
         # print(etree.tostring(envelope))
+        # self.logger.debug(etree.tostring(envelope))
         return envelope, http_headers
 
 

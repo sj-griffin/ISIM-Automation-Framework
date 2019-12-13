@@ -80,20 +80,20 @@ def apply_account_service(isim_application: ISIMApplication,
                           container_dn: str,
                           name: str,
                           service_type: str,
-                          description: str = "",
-                          owner: str = "",
-                          service_prerequisite: str = "",
+                          description: Optional[str] = None,
+                          owner: Optional[str] = None,
+                          service_prerequisite: Optional[str] = None,
                           define_access: bool = False,
-                          access_name: str = "",
-                          access_type: str = "",
-                          access_description: str = "",
-                          access_image_uri: str = "",
-                          access_search_terms: List[str] = [],
-                          access_additional_info: str = "",
-                          access_badges: List[Dict[str, str]] = [],
+                          access_name: Optional[str] = None,
+                          access_type: Optional[str] = None,
+                          access_description: Optional[str] = None,
+                          access_image_uri: Optional[str] = None,
+                          access_search_terms: Optional[List[str]] = None,
+                          access_additional_info: Optional[str] = None,
+                          access_badges: Optional[List[Dict[str, str]]] = None,
                           configuration: Dict = {},
                           check_mode=False,
-                          force=False):
+                          force=False) -> IBMResponse:
     """
     Apply an account service configuration. This function will dynamically choose whether to to create or modify based
         on whether a service with the same name exists in the same container. Only attributes which differ from the
@@ -179,6 +179,10 @@ def apply_account_service(isim_application: ISIMApplication,
     if access_badges is None:
         access_badges = []
 
+    for key in configuration:
+        if configuration[key] is None:
+            configuration[key] = ""
+
     # Search for instances with the specified name in the specified container
     search_response = search(
         isim_application=isim_application,
@@ -229,7 +233,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_description = get_soap_attribute(existing_service, 'description')
         if existing_description is None:
-            modify_required = True
+            if description != '':
+                modify_required = True
+            else:
+                description = None  # set to None so that no change occurs
         elif description != existing_description[0]:
             modify_required = True
         else:
@@ -237,7 +244,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_owner = get_soap_attribute(existing_service, 'owner')
         if existing_owner is None:
-            modify_required = True
+            if owner != '':
+                modify_required = True
+            else:
+                owner = None  # set to None so that no change occurs
         elif owner != existing_owner[0]:
             modify_required = True
         else:
@@ -245,7 +255,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_service_prerequisite = get_soap_attribute(existing_service, 'erprerequisite')
         if existing_service_prerequisite is None:
-            modify_required = True
+            if service_prerequisite != '':
+                modify_required = True
+            else:
+                service_prerequisite = None  # set to None so that no change occurs
         elif service_prerequisite != existing_service_prerequisite[0]:
             modify_required = True
         else:
@@ -266,7 +279,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_access_name = get_soap_attribute(existing_service, 'eraccessname')
         if existing_access_name is None:
-            modify_required = True
+            if access_name != '':
+                modify_required = True
+            else:
+                access_name = None  # set to None so that no change occurs
         elif access_name != existing_access_name[0]:
             modify_required = True
         else:
@@ -275,7 +291,10 @@ def apply_account_service(isim_application: ISIMApplication,
         existing_access_type = get_soap_attribute(existing_service, 'eraccesscategory')
 
         if existing_access_type is None:
-            modify_required = True
+            if access_type != '':
+                modify_required = True
+            else:
+                access_type = None  # set to None so that no change occurs
         elif access_type.lower() == "application":
             if existing_access_type[0] != "Application":
                 modify_required = True
@@ -303,7 +322,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_access_description = get_soap_attribute(existing_service, 'eraccessdescription')
         if existing_access_description is None:
-            modify_required = True
+            if access_description != '':
+                modify_required = True
+            else:
+                access_description = None  # set to None so that no change occurs
         elif access_description != existing_access_description[0]:
             modify_required = True
         else:
@@ -311,7 +333,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_access_image_uri = get_soap_attribute(existing_service, 'erimageuri')
         if existing_access_image_uri is None:
-            modify_required = True
+            if access_image_uri != '':
+                modify_required = True
+            else:
+                access_image_uri = None  # set to None so that no change occurs
         elif access_image_uri != existing_access_image_uri[0]:
             modify_required = True
         else:
@@ -319,7 +344,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_access_search_terms = get_soap_attribute(existing_service, 'eraccesstag')
         if existing_access_search_terms is None:
-            modify_required = True
+            if access_search_terms != []:
+                modify_required = True
+            else:
+                access_search_terms = None  # set to None so that no change occurs
         elif Counter(access_search_terms) != Counter(existing_access_search_terms):
             modify_required = True
         else:
@@ -327,7 +355,10 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_access_additional_info = get_soap_attribute(existing_service, 'eradditionalinformation')
         if existing_access_additional_info is None:
-            modify_required = True
+            if access_additional_info != '':
+                modify_required = True
+            else:
+                access_additional_info = None  # set to None so that no change occurs
         elif access_additional_info != existing_access_additional_info[0]:
             modify_required = True
         else:
@@ -340,7 +371,10 @@ def apply_account_service(isim_application: ISIMApplication,
             new_badges.append(str(badge['text'] + "~" + badge['colour']))
 
         if existing_access_badges is None:
-            modify_required = True
+            if new_badges != []:
+                modify_required = True
+            else:
+                access_badges = None  # set to None so that no change occurs
         elif Counter(new_badges) != Counter(existing_access_badges):
             modify_required = True
         else:
@@ -377,7 +411,10 @@ def apply_account_service(isim_application: ISIMApplication,
             do_not_check.append(key.lower())  # mark the key as checked
 
             if existing_value is None:
-                modify_required = True
+                if configuration[key] != '' and configuration[key] != []:
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
                 continue
 
             if type(configuration[key]) is list:
@@ -437,13 +474,13 @@ def apply_identity_feed(isim_application: ISIMApplication,
                         container_dn: str,
                         name: str,
                         service_type: str,
-                        description: str = "",
+                        description: Optional[str] = None,
                         use_workflow: bool = False,
                         evaluate_sod: bool = False,
-                        placement_rule: str = "",
+                        placement_rule: Optional[str] = None,
                         configuration: Dict = {},
                         check_mode=False,
-                        force=False):
+                        force=False) -> IBMResponse:
     """
     Apply an identity feed configuration. This function will dynamically choose whether to to create or modify based
         on whether a service with the same name exists in the same container. Only attributes which differ from the
@@ -496,6 +533,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
     if placement_rule is None:
         placement_rule = ""
 
+    for key in configuration:
+        if configuration[key] is None:
+            configuration[key] = ""
+
     # Search for instances with the specified name in the specified container
     search_response = search(
         isim_application=isim_application,
@@ -539,7 +580,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
 
         existing_description = get_soap_attribute(existing_service, 'description')
         if existing_description is None:
-            modify_required = True
+            if description != '':
+                modify_required = True
+            else:
+                description = None  # set to None so that no change occurs
         elif description != existing_description[0]:
             modify_required = True
         else:
@@ -567,7 +611,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
 
         existing_placement_rule = get_soap_attribute(existing_service, 'erplacementrule')
         if existing_placement_rule is None:
-            modify_required = True
+            if placement_rule != '':
+                modify_required = True
+            else:
+                placement_rule = None  # set to None so that no change occurs
         elif placement_rule != existing_placement_rule[0]:
             modify_required = True
         else:
@@ -597,7 +644,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
             do_not_check.append(key.lower())  # mark the key as checked
 
             if existing_value is None:
-                modify_required = True
+                if configuration[key] != '' and configuration[key] != []:
+                    modify_required = True
+                else:
+                    configuration[key] = None  # set to None so that no change occurs
                 continue
 
             if type(configuration[key]) is list:
@@ -997,10 +1047,16 @@ def _build_service_attributes_list(attr_type,
 
     # Setup the attributes common to all services
     if name is not None:
-        attribute_list.append(build_attribute(attr_type, 'erservicename', [name]))
+        if name == '':
+            attribute_list.append(build_attribute(attr_type, 'erservicename', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'erservicename', [name]))
 
     if description is not None:
-        attribute_list.append(build_attribute(attr_type, 'description', [description]))
+        if description == '':
+            attribute_list.append(build_attribute(attr_type, 'description', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'description', [description]))
 
     # Add the profile specific attributes
     if configuration is not None:
@@ -1009,27 +1065,42 @@ def _build_service_attributes_list(attr_type,
                 if type(configuration[key]) is list:
                     attribute_list.append(build_attribute(attr_type, key, configuration[key]))
                 else:
-                    attribute_list.append(build_attribute(attr_type, key, [configuration[key]]))
+                    if configuration[key] == '':
+                        attribute_list.append(build_attribute(attr_type, key, []))
+                    else:
+                        attribute_list.append(build_attribute(attr_type, key, [configuration[key]]))
 
     # Setup the attributes for an account service
     if owner is not None:
-        attribute_list.append(build_attribute(attr_type, 'owner', [owner]))
+        if owner == '':
+            attribute_list.append(build_attribute(attr_type, 'owner', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'owner', [owner]))
 
     if service_prerequisite is not None:
-        attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite]))
+        if service_prerequisite == '':
+            attribute_list.append(build_attribute(attr_type, 'erprerequisite', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite]))
 
     if define_access is not None:
         # eraccessoption must be set to 2 to enable access, or empty to disable it
         if define_access is True:
             attribute_list.append(build_attribute(attr_type, 'eraccessoption', ["2"]))
         else:
-            attribute_list.append(build_attribute(attr_type, 'eraccessoption', [""]))
+            attribute_list.append(build_attribute(attr_type, 'eraccessoption', []))
 
     if access_name is not None:
-        attribute_list.append(build_attribute(attr_type, 'eraccessname', [access_name]))
+        if access_name == '':
+            attribute_list.append(build_attribute(attr_type, 'eraccessname', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'eraccessname', [access_name]))
 
     if access_description is not None:
-        attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [access_description]))
+        if access_description == '':
+            attribute_list.append(build_attribute(attr_type, 'eraccessdescription', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'eraccessdescription', [access_description]))
 
     if access_type is not None:
         if access_type.lower() == "application":
@@ -1045,13 +1116,19 @@ def _build_service_attributes_list(attr_type,
                                            "'emailgroup', or 'role'.")
 
     if access_image_uri is not None:
-        attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
+        if access_image_uri == '':
+            attribute_list.append(build_attribute(attr_type, 'erimageuri', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'erimageuri', [access_image_uri]))
 
     if access_search_terms is not None:
         attribute_list.append(build_attribute(attr_type, 'eraccesstag', access_search_terms))
 
     if access_additional_info is not None:
-        attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
+        if access_additional_info == '':
+            attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'eradditionalinformation', [access_additional_info]))
 
     if access_badges is not None:
         badges = []
@@ -1067,6 +1144,9 @@ def _build_service_attributes_list(attr_type,
         attribute_list.append(build_attribute(attr_type, 'erevaluatesod', [evaluate_sod]))
 
     if placement_rule is not None:
-        attribute_list.append(build_attribute(attr_type, 'erplacementrule', [placement_rule]))
+        if placement_rule == '':
+            attribute_list.append(build_attribute(attr_type, 'erplacementrule', []))
+        else:
+            attribute_list.append(build_attribute(attr_type, 'erplacementrule', [placement_rule]))
 
     return attribute_list

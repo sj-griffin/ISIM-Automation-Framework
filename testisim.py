@@ -156,11 +156,11 @@ if __name__ == "__main__":
     # pretty_print(isimws.isim.service.apply_account_service(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="soap-test-service 7",
     #     service_type="ADprofile",
-    #     name="soap-test-service 2",
     #     description="Here's a description",
-    #     owner="erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     service_prerequisite="erglobalid=5268667508840453154,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     owner=None, # "erglobalid=544203505143873735,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     service_prerequisite="erglobalid=8710749904858128313,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com",
     #     define_access=True,
     #     access_name="Test access",
     #     access_type="role",
@@ -183,36 +183,36 @@ if __name__ == "__main__":
     #     force=False
     # ))
     #
-    # Idempotently apply an identity feed configuration
-    print("Applying an identity feed configuration...")
-    pretty_print(isimws.isim.service.apply_identity_feed(
-        isim_application=isim_server,
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        service_type="ADFeed",
-        name="soap-test-feed 4",
-        description="Here's a description",
-        use_workflow=True,
-        evaluate_sod=True,
-        placement_rule="Here's a rule",
-        configuration={
-            'erURL': 'demo.demo',
-            'erUid': 'admin',
-            'erPassword': 'Object00',
-            'erNamingContexts': ['erglobalid=00000000000000000000,ou=demo,dc=com'],
-            'erPersonProfileName': 'Person',
-            'erAttrMapFilename': '/test',
-            'ernamingattribute': 'uid'  # will appear as 'sAMAccountName' in the UI
-        },
-        check_mode=False,
-        force=False
-    ))
+    # # Idempotently apply an identity feed configuration
+    # print("Applying an identity feed configuration...")
+    # pretty_print(isimws.isim.service.apply_identity_feed(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="soap-test-feed 6",
+    #     service_type="ADFeed",
+    #     description="Here's a description",
+    #     use_workflow=True,
+    #     evaluate_sod=True,
+    #     placement_rule="Here's a rule",
+    #     configuration={
+    #         'erURL': 'demo.demo',
+    #         'erUid': 'admin',
+    #         'erPassword': 'Object00',
+    #         'erNamingContexts': ['erglobalid=00000000000000000000,ou=demo,dc=com'],
+    #         'erPersonProfileName': 'Person',
+    #         'erAttrMapFilename': '/test',
+    #         'ernamingattribute': 'uid'  # will appear as 'sAMAccountName' in the UI
+    #     },
+    #     check_mode=False,
+    #     force=False
+    # ))
 
     # # Idempotently apply a role configuration
     # print("Applying a role configuration...")
     # pretty_print(isimws.isim.role.apply(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     name='Applied Role 3',
+    #     name='Applied Role 5',
     #     role_classification='business',
     #     description='A role to test the SOAP API.',
     #     role_owners=[
