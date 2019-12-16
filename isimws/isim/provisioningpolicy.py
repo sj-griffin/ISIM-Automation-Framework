@@ -226,7 +226,7 @@ def apply(isim_application: ISIMApplication,
 
         existing_memberships = existing_policy['membership']['item']
         if membership_type == 'all':
-            if len(existing_memberships != 1):
+            if len(existing_memberships) != 1:
                 modify_required = True
 
             if existing_memberships[0]['name'] != '*':
@@ -235,7 +235,7 @@ def apply(isim_application: ISIMApplication,
             if existing_memberships[0]['type'] != 2:
                 modify_required = True
         elif membership_type == 'other':
-            if len(existing_memberships != 1):
+            if len(existing_memberships) != 1:
                 modify_required = True
 
             if existing_memberships[0]['name'] != '*':
