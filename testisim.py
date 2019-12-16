@@ -83,58 +83,58 @@ if __name__ == "__main__":
     # Create an ISIM application with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
-    # # Search for a provisioning policy
+    # Search for a provisioning policy
     # print("Searching for a provisioning policy...")
     # pretty_print(isimws.isim.provisioningpolicy.search(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     policy_name="test policy"
+    #     policy_name="test"
     # ))
     #
-    # # Create a provisioning policy
-    # print("Creating a provisioning policy...")
-    # pretty_print(isimws.isim.provisioningpolicy.create(
-    #     isim_application=isim_server,
-    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     name="Provisioning policy test",
-    #     priority=50,
-    #     description="Here's a description",
-    #     keywords="here are some keywords",
-    #     caption="Here's a caption",
-    #     available_to_subunits=False,
-    #     enabled=True,
-    #     membership_type="roles",
-    #     membership_roles=['erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com',
-    #                       'erglobalid=3886333847069531567,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'],
-    #     entitlements=[
-    #         {
-    #             'automatic': False,
-    #             'ownership_type': 'all',
-    #             'target_type': 'all',
-    #             'service_type': None,
-    #             'service_dn': None,
-    #             'workflow': None
-    #         },
-    #         {
-    #             'automatic': True,
-    #             'ownership_type': 'device',
-    #             'target_type': 'policy',
-    #             'service_type': 'ADprofile',
-    #             'service_dn': None,
-    #             'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
-    #         },
-    #         {
-    #             'automatic': False,
-    #             'ownership_type': 'individual',
-    #             'target_type': 'specific',
-    #             'service_type': None,
-    #             'service_dn': 'erglobalid=5640892613783950619,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com',
-    #             'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
-    #         }
-    #     ],
-    #     check_mode=False,
-    #     force=False
-    # ))
+    # Idempotently apply a provisioning policy configuration
+    print("Applying a provisioning policy configuration...")
+    pretty_print(isimws.isim.provisioningpolicy.apply(
+        isim_application=isim_server,
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        name="PP apply test",
+        priority=50,
+        description="Here's a description",
+        keywords="here are some keywords",
+        caption="Here's a caption",
+        available_to_subunits=False,
+        enabled=True,
+        membership_type="roles",
+        membership_roles=['erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com',
+                          'erglobalid=3886333847069531567,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'],
+        entitlements=[
+            {
+                'automatic': False,
+                'ownership_type': 'all',
+                'target_type': 'all',
+                'service_type': None,
+                'service_dn': None,
+                'workflow': None
+            },
+            {
+                'automatic': True,
+                'ownership_type': 'device',
+                'target_type': 'policy',
+                'service_type': 'ADprofile',
+                'service_dn': None,
+                'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
+            },
+            {
+                'automatic': False,
+                'ownership_type': 'individual',
+                'target_type': 'specific',
+                'service_type': None,
+                'service_dn': 'erglobalid=8710749904858128313,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com',
+                'workflow': 'erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'
+            }
+        ],
+        check_mode=False,
+        force=False
+    ))
 
     # Search for services
     # print("Searching for services...")

@@ -415,7 +415,8 @@ class ISIMApplication:
             # in the event of an invalid session ID, unconditionally raise an exception to abort execution
             if soap_fault['code'] == 'axis2ns1:Server' and soap_fault['message'] == 'Internal Error':
                 raise IBMFatal("HTTP Return code: 500. Fault message: " + soap_fault[
-                    'message'] + "\n This is often caused by an invalid session with the server.")
+                    'message'] + "\n This can be caused by an invalid session with the server, or using invalid "
+                                 "parameter values in the request.")
 
             if not ignore_error:
                 raise IBMError("HTTP Return code: 500. Fault message: " + soap_fault['message'])

@@ -94,8 +94,8 @@ def apply(isim_application: ISIMApplication,
           description: Optional[str] = None,
           role_owners: Optional[List[str]] = None,
           user_owners: Optional[List[str]] = None,
-          enable_access: bool = False,
-          common_access: bool = False,
+          enable_access: bool = None,
+          common_access: bool = None,
           access_type: Optional[str] = None,
           access_image_uri: Optional[str] = None,
           access_search_terms: Optional[List[str]] = None,
@@ -187,7 +187,14 @@ def apply(isim_application: ISIMApplication,
         return search_response
     search_results = search_response['data']
 
-    if len(search_results) == 0 or force:
+    # Because the search function can return results with names containing the specified name, we need to confirm which
+    # results have the exact name that was searched for.
+    exact_matches = []
+    for result in search_results:
+        if result['name'] == name:
+            exact_matches.append(result)
+
+    if len(exact_matches) == 0 or force:
         # If there are no results, create a new role and return the response
         if check_mode:
             return create_return_object(changed=True)
@@ -209,10 +216,10 @@ def apply(isim_application: ISIMApplication,
                 access_badges=access_badges,
                 assignment_attributes=assignment_attributes
             )
-    elif len(search_results) == 1:
+    elif len(exact_matches) == 1:
         # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_role = search_results[0]
+        existing_role = exact_matches[0]
         modify_required = False
 
         existing_role_classification = get_soap_attribute(existing_role, 'erroleclassification')
@@ -414,7 +421,8 @@ def _create(isim_application: ISIMApplication,
             access_badges: List[Dict[str, str]] = [],
             assignment_attributes: List[str] = []) -> IBMResponse:
     """
-    Create a Role.
+    Create a Role. To set an attribute to an empty value, use an empty string or empty list. Do not use None as this
+        indicates no change, which is not applicable to a create operation.
     :param isim_application: The ISIMApplication instance to connect to.
     :param container_dn: The DN of the container (business unit) to create the role under.
     :param name: The role name.
@@ -517,7 +525,9 @@ def _modify(isim_application: ISIMApplication,
             assignment_attributes: Optional[List[str]] = None) -> IBMResponse:
     """
     Modify the attributes of an existing Role. Only arguments with a value will be changed. Any arguments set to None
-        will be left as they are.
+        will be left as they are. The one exception to this is role_owners and user_owners. If you set either one, it
+        will overwrite all existing owners, both role and user. To set an attribute to an empty value, use an empty
+        string or empty list.
     :param isim_application: The ISIMApplication instance to connect to.
     :param role_dn: The DN of the existing role to modify.
     :param role_classification: Set to either "application" or "business".
@@ -596,7 +606,7 @@ def _build_role_attributes_list(
         arguments with a value will be set. Any arguments set to None will be left as they are. The one exception to
         this is role_owners and user_owners. If you set either one, it will overwrite all existing owners, both role
         and user. To set an attribute to an empty value, use an empty string or empty list.
-    :param attr_type: The SOAP type that can be used to instantiate the an attribute object.
+    :param attr_type: The SOAP type that can be used to instantiate an attribute object.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
     :param role_owners: A list of DNs corresponding to the roles that own this role.

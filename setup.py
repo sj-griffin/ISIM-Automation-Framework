@@ -6,7 +6,7 @@ setup(
     # Date of release used for version - please be sure to use YYYY.MM.DD.seq#, MM and DD should be two digits e.g.
     # 2017.02.05.0 seq# will be zero unless there are multiple release on a given day - then increment by one for
     # additional release for that date
-    version='2019.12.13.0',
+    version='2019.12.14.0',
     description='Idempotent functions for IBM Security Identity Manager SOAP web services',
     author='IBM',
     author_email='griffins@au1.ibm.com',

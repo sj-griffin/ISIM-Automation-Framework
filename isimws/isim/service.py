@@ -83,7 +83,7 @@ def apply_account_service(isim_application: ISIMApplication,
                           description: Optional[str] = None,
                           owner: Optional[str] = None,
                           service_prerequisite: Optional[str] = None,
-                          define_access: bool = False,
+                          define_access: bool = None,
                           access_name: Optional[str] = None,
                           access_type: Optional[str] = None,
                           access_description: Optional[str] = None,
@@ -194,7 +194,14 @@ def apply_account_service(isim_application: ISIMApplication,
         return search_response
     search_results = search_response['data']
 
-    if len(search_results) == 0 or force:
+    # Because the search function can return results with names containing the specified name, we need to confirm which
+    # results have the exact name that was searched for.
+    exact_matches = []
+    for result in search_results:
+        if result['name'] == name:
+            exact_matches.append(result)
+
+    if len(exact_matches) == 0 or force:
         # If there are no results, create a new service and return the response
         if check_mode:
             return create_return_object(changed=True)
@@ -216,10 +223,10 @@ def apply_account_service(isim_application: ISIMApplication,
                                            access_badges=access_badges,
                                            configuration=configuration)
 
-    elif len(search_results) == 1:
+    elif len(exact_matches) == 1:
         # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_service = search_results[0]
+        existing_service = exact_matches[0]
         modify_required = False
 
         existing_service_type = existing_service['profileName']
@@ -475,8 +482,8 @@ def apply_identity_feed(isim_application: ISIMApplication,
                         name: str,
                         service_type: str,
                         description: Optional[str] = None,
-                        use_workflow: bool = False,
-                        evaluate_sod: bool = False,
+                        use_workflow: bool = None,
+                        evaluate_sod: bool = None,
                         placement_rule: Optional[str] = None,
                         configuration: Dict = {},
                         check_mode=False,
@@ -548,7 +555,14 @@ def apply_identity_feed(isim_application: ISIMApplication,
         return search_response
     search_results = search_response['data']
 
-    if len(search_results) == 0 or force:
+    # Because the search function can return results with names containing the specified name, we need to confirm which
+    # results have the exact name that was searched for.
+    exact_matches = []
+    for result in search_results:
+        if result['name'] == name:
+            exact_matches.append(result)
+
+    if len(exact_matches) == 0 or force:
         # If there are no results, create a new feed and return the response
         if check_mode:
             return create_return_object(changed=True)
@@ -563,10 +577,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
                                          placement_rule=placement_rule,
                                          configuration=configuration)
 
-    elif len(search_results) == 1:
+    elif len(exact_matches) == 1:
         # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_service = search_results[0]
+        existing_service = exact_matches[0]
         modify_required = False
 
         existing_service_type = existing_service['profileName']
@@ -713,7 +727,8 @@ def _create_account_service(isim_application: ISIMApplication,
                             access_badges: List[Dict[str, str]] = [],
                             configuration: Dict = {}) -> IBMResponse:
     """
-    Create an account service.
+    Create an account service. To set an attribute to an empty value, use an empty string or empty list. Do not use
+        None as this indicates no change, which is not applicable to a create operation.
     :param isim_application: The ISIMApplication instance to connect to.
     :param container_dn: The DN of the container (business unit) to create the service under.
     :param name: The service name.
@@ -873,7 +888,8 @@ def _create_identity_feed(isim_application: ISIMApplication,
                           placement_rule: str = "",
                           configuration: Dict = {}) -> IBMResponse:
     """
-    Create an identity feed.
+    Create an identity feed. To set an attribute to an empty value, use an empty string or empty list. Do not use None
+        as this indicates no change, which is not applicable to a create operation.
     :param isim_application: The ISIMApplication instance to connect to.
     :param container_dn: The DN of the container (business unit) to create the feed under.
     :param name: The service name.
