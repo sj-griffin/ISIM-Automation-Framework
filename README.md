@@ -1,23 +1,25 @@
-# IBM Sample Code
+# ISIM Web Services for Ansible Library
 
-This repository contains Python code to manage ISIM using the SOAP web services. It is inspired by and based on the 
-IBM-Security/ibmsecurity repository.
+This repository contains Python code to manage ISIM using the SOAP web services via Ansible. It provides output in a
+standardised IBMResponse format which can be easily interpreted by Ansible modules. It is inspired by and based on the
+IBM-Security/ibmsecurity repository (https://github.com/IBM-Security/ibmsecurity).
 
 
 ## Requirements
 
-Python v3.7 and above is required for this package.
+Python v3.6 and above is required for this package.
 
 The following Python Packages are required:
-1. requests - for making REST API calls
-2. zeep - for interacting with SOAP services
-3. PyYAML - for the sample code to work
+1. zeep - for interacting with SOAP services
+2. requests - for direct manipulation of SOAP HTTP calls
+3. importlib - for the sample code to work
+4. PyYAML - for the sample code to work
 
 The ISIM appliance is expected to be configured and have an application interface set up already.
 
 ## Versioning
 
-This package uses a date for versioning. For example: "2017.03.18.0"
+This package uses a date for versioning. For example: "2019.11.20.0"
 
 It is the date when the package is released with a sequence number at the end to handle when there are 
 multiple releases in one day (expected to be uncommon).
@@ -27,8 +29,8 @@ multiple releases in one day (expected to be uncommon).
 This python package provides the following features:
 1. Easy to use - the details of making a SOAP call are handled within the ISIMApplication class
 2. Intuitive layout of code package and naming maps to the GUI interface of the ISIM application
-3. Idempotency - functions that make updates will query the appliance to compare given data to see if a 
-changes is required before making the actual change.
+3. Idempotency - functions that make updates will query the application to compare the current state with the target
+state and dynamically determine what action to take.
 4. Standard logging is included - with the ability to set logging levels.
 5. Parameters to function will use standard default values wherever possible.
 6. A force option is provided to override idempotency.
@@ -41,6 +43,11 @@ Then call the functions needed. Run the code like you would any other Python scr
 e.g.: `python testisim.py`
 
 Note: the code requires PyYAML (for printing output in YAML) and importlib (dynamically load all packages) packages to work.
+
+### Installation Instructions
+
+Use the setup.py file to package the source code into the dist directory with `python3 setup.py sdist bdist_wheel`
+Install the package with `pip3 install ./dist/isimws-XXXX.XX.XX.X-py3-none-any.whl`
 
 ### Function Data Return Format
 ~~~~
