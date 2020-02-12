@@ -83,6 +83,15 @@ if __name__ == "__main__":
     # Create an ISIM application with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
+    # Search for a container
+    print("Searching for a container...")
+    pretty_print(isimws.isim.container.search(
+        isim_application=isim_server,
+        parent_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        container_name="testou",
+        profile="organizationalunit"
+    ))
+
     # Search for a provisioning policy
     # print("Searching for a provisioning policy...")
     # pretty_print(isimws.isim.provisioningpolicy.search(
@@ -91,33 +100,33 @@ if __name__ == "__main__":
     #     policy_name="test"
     # ))
     #
-    # Idempotently apply a provisioning policy configuration
-    print("Applying a provisioning policy configuration...")
-    pretty_print(isimws.isim.provisioningpolicy.apply(
-        isim_application=isim_server,
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name="Provisioning policy test 1",
-        priority=50,
-        description="Here's a description",
-        keywords="here are some keywords",
-        caption="Here's a caption",
-        available_to_subunits=False,
-        enabled=True,
-        membership_type="all",
-        membership_roles=[],
-        entitlements=[
-            {
-                'automatic': False,
-                'ownership_type': 'all',
-                'target_type': 'all',
-                'service_type': None,
-                'service_dn': None,
-                'workflow': None
-            }
-        ],
-        check_mode=False,
-        force=False
-    ))
+    # # Idempotently apply a provisioning policy configuration
+    # print("Applying a provisioning policy configuration...")
+    # pretty_print(isimws.isim.provisioningpolicy.apply(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="Provisioning policy test 1",
+    #     priority=50,
+    #     description="Here's a description",
+    #     keywords="here are some keywords",
+    #     caption="Here's a caption",
+    #     available_to_subunits=False,
+    #     enabled=True,
+    #     membership_type="all",
+    #     membership_roles=[],
+    #     entitlements=[
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'all',
+    #             'target_type': 'all',
+    #             'service_type': None,
+    #             'service_dn': None,
+    #             'workflow': None
+    #         }
+    #     ],
+    #     check_mode=False,
+    #     force=False
+    # ))
 
 
     # pretty_print(isimws.isim.provisioningpolicy.apply(
@@ -163,12 +172,12 @@ if __name__ == "__main__":
     #     force=False
     # ))
 
-    # Search for services
+    # # Search for services
     # print("Searching for services...")
     # pretty_print(isimws.isim.service.search(
     #     isim_application=isim_server,
     #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     ldap_filter="(erservicename=derp)"
+    #     ldap_filter="(erservicename=ad-test-feed)"
     # ))
     #
     # # Get a service
