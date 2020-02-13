@@ -1,50 +1,8 @@
 from typing import List, Dict, Optional
+from collections import OrderedDict
 import re
 
-
-def version_compare(version1, version2):
-    """
-    Compare two ISIM version strings. Please note that the versions should be all numeric separated by dots.
-
-    Returns following values:
-         0 - if version strings are equivalent
-        >0 - if version1 is greater than version2
-        <0 - if version1 is less than version2
-
-    Test cases to run for verifying this code:
-        assert version_compare("1", "1") == 0
-        assert version_compare("2.1", "2.2") < 0
-        assert version_compare("3.0.4.10", "3.0.4.2") > 0
-        assert version_compare("4.08", "4.08.01") < 0
-        assert version_compare("3.2.1.9.8144", "3.2") > 0
-        assert version_compare("3.2", "3.2.1.9.8144") < 0
-        assert version_compare("1.2", "2.1") < 0
-        assert version_compare("2.1", "1.2") > 0
-        assert version_compare("5.6.7", "5.6.7") == 0
-        assert version_compare("1.01.1", "1.1.1") == 0
-        assert version_compare("1.1.1", "1.01.1") == 0
-        assert version_compare("1", "1.0") == 0
-        assert version_compare("1.0", "1") == 0
-        assert version_compare("1.0", "1.0.1") < 0
-        assert version_compare("1.0.1", "1.0") > 0
-        assert version_compare("1.0.2.0", "1.0.2") == 0
-        assert version_compare("10.0", "9.0.3") > 0
-
-    :param version1:
-    :param version2:
-    :return:
-    """
-
-    def normalize(v):
-        v = re.sub(r'_b\d+$', '', v)
-        return [int(x) for x in re.sub(r'(\.0+)*$', '', v).split(".")]
-
-    if normalize(version1) == normalize(version2):
-        return 0
-    elif normalize(version1) > normalize(version2):
-        return 1
-    elif normalize(version1) < normalize(version2):
-        return -1
+from isimws.application.isimapplication import IBMResponse
 
 
 def build_attribute(attribute_type, key: str, value_list: List):
@@ -98,3 +56,25 @@ def list_soap_attribute_keys(returned_object: Dict) -> Optional[List]:
     for attribute in attributes:
         keys.append(attribute['name'].lower())
     return keys
+
+
+def strip_zeep_element_data(response: IBMResponse) -> IBMResponse:
+    """
+    There is a limitation with the Zeep library where the zeep.helpers.serialize_object() function does not properly
+    serialize the Zeep Element objects returned by some SOAP calls. In cases where we want to return an IBMResponse
+    object to be processed by Ansible, we need to strip this unserialized data because Ansible won't be able to
+    interpret it properly. This function removes the part of the data attribute containing raw Zeep Elements. This
+    functionality was not included in the ISIMApplication class because there are cases when we want to use the
+    raw Element data, so we don't want to strip it every time.
+    :param response: An IBMResponse object returned by a call to ISIMApplication.invoke_soap_request().
+    :return: The IBMResponse object with the Zeep Element data removed from it's data attribute.
+    """
+    if isinstance(response['data'], list):
+        for result in response['data']:
+            for element in result['children']['item']:
+                del element['_raw_elements']
+    elif isinstance(response['data'], OrderedDict):
+        for element in response['data']['children']['item']:
+            del element['_raw_elements']
+
+    return response

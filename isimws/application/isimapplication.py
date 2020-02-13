@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional
 import requests
 import logging
+import re
 from requests import Session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 # from lxml import etree
@@ -11,7 +12,6 @@ from zeep.transports import Transport
 from zeep.exceptions import Fault
 from zeep.helpers import serialize_object
 
-from isimws.utilities import tools
 from isimws.user.isimapplicationuser import ISIMApplicationUser
 
 
@@ -89,6 +89,50 @@ def create_return_object(rc=0, data=None, warnings=[], changed=False):
                         'warnings': warnings
                         })
 
+
+def version_compare(version1, version2):
+    """
+    Compare two ISIM version strings. Please note that the versions should be all numeric separated by dots.
+
+    Returns following values:
+         0 - if version strings are equivalent
+        >0 - if version1 is greater than version2
+        <0 - if version1 is less than version2
+
+    Test cases to run for verifying this code:
+        assert version_compare("1", "1") == 0
+        assert version_compare("2.1", "2.2") < 0
+        assert version_compare("3.0.4.10", "3.0.4.2") > 0
+        assert version_compare("4.08", "4.08.01") < 0
+        assert version_compare("3.2.1.9.8144", "3.2") > 0
+        assert version_compare("3.2", "3.2.1.9.8144") < 0
+        assert version_compare("1.2", "2.1") < 0
+        assert version_compare("2.1", "1.2") > 0
+        assert version_compare("5.6.7", "5.6.7") == 0
+        assert version_compare("1.01.1", "1.1.1") == 0
+        assert version_compare("1.1.1", "1.01.1") == 0
+        assert version_compare("1", "1.0") == 0
+        assert version_compare("1.0", "1") == 0
+        assert version_compare("1.0", "1.0.1") < 0
+        assert version_compare("1.0.1", "1.0") > 0
+        assert version_compare("1.0.2.0", "1.0.2") == 0
+        assert version_compare("10.0", "9.0.3") > 0
+
+    :param version1:
+    :param version2:
+    :return:
+    """
+
+    def normalize(v):
+        v = re.sub(r'_b\d+$', '', v)
+        return [int(x) for x in re.sub(r'(\.0+)*$', '', v).split(".")]
+
+    if normalize(version1) == normalize(version2):
+        return 0
+    elif normalize(version1) > normalize(version2):
+        return 1
+    elif normalize(version1) < normalize(version2):
+        return -1
 
 class ISIMApplication:
     host: str
@@ -335,7 +379,7 @@ class ISIMApplication:
         :return: A flag that is True if the application version is sufficient or can't be determined.
         """
         if requires_version is not None and self.version is not None:
-            if tools.version_compare(self.version, requires_version) < 0:
+            if version_compare(self.version, requires_version) < 0:
                 return False
         return True
 
@@ -433,3 +477,4 @@ class ISIMApplication:
             self.logger.debug("Response: " + str(response))
         else:
             self.logger.debug("Response: None")
+

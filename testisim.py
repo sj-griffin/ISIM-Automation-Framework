@@ -83,14 +83,20 @@ if __name__ == "__main__":
     # Create an ISIM application with above credential
     isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
 
-    # Search for a container
-    print("Searching for a container...")
-    pretty_print(isimws.isim.container.search(
-        isim_application=isim_server,
-        parent_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        container_name="testou",
-        profile="organizationalunit"
+    # Get a list of organizations
+    print("Getting organizations...")
+    pretty_print(isimws.isim.organization.get_all(
+        isim_application=isim_server
     ))
+
+    # # Search for a container
+    # print("Searching for a container...")
+    # pretty_print(isimws.isim.container.search(
+    #     isim_application=isim_server,
+    #     parent_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     container_name="testou",
+    #     profile="organizationalunit"
+    # ))
 
     # Search for a provisioning policy
     # print("Searching for a provisioning policy...")

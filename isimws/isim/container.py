@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 import logging
 from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
 import isimws
+from isimws.utilities.tools import strip_zeep_element_data
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ def search(isim_application: ISIMApplication,
     """
     Search for a container by it's name.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param parent_dn: The DN of the parent container.
+    :param parent_dn: The DN of the parent container to search under. All descendants of this container will be
+        searched, not just direct children.
     :param container_name: The name of the container to search for.
     :param profile: The type of container to search for. Options are 'organization', 'admindomain', 'location',
         'businesspartnerunit', or 'organizationalunit'.
@@ -68,13 +70,7 @@ def search(isim_application: ISIMApplication,
                                                    data,
                                                    requires_version=requires_version)
 
-    # There seems to be an issue with the Zeep library where The zeep.helpers.serialize_object() function being used by
-    # the isimapplication class to serialize the SOAP response does not properly serialize all the data returned by
-    # this particular call. We need to perform some post processing here to remove the unserialized data so that
-    # Ansible can interpret it properly. This is a temporary workaround pending a better solution.
-    for result in ret_obj['data']:
-        for element in result['children']['item']:
-            del element['_raw_elements']
+    ret_obj = strip_zeep_element_data(ret_obj)
 
     return ret_obj
 
