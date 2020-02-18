@@ -134,6 +134,7 @@ def version_compare(version1, version2):
     elif normalize(version1) < normalize(version2):
         return -1
 
+
 class ISIMApplication:
     host: str
     port: int
@@ -174,6 +175,8 @@ class ISIMApplication:
                                                            plugins=[ZeepLoggingPlugin()]),
                 "WSPersonService": Client(base_url + "WSPersonServiceService?WSDL",
                                           transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
+                "WSAccountService": Client(base_url + "WSAccountServiceService?WSDL",
+                                           transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSRoleService": Client(base_url + "WSRoleServiceService?WSDL",
                                         transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSServiceService": Client(base_url + "WSServiceServiceService?WSDL",
@@ -188,7 +191,9 @@ class ISIMApplication:
                 "WSSystemUserService": Client(base_url + "WSSystemUserServiceService?WSDL",
                                               transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
                 "WSGroupService": Client(base_url + "WSGroupServiceService?WSDL",
-                                         transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()])
+                                         transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()]),
+                "WSSearchDataService": Client(base_url + "WSSearchDataServiceService?WSDL",
+                                              transport=transport, settings=settings, plugins=[ZeepLoggingPlugin()])
             }
 
             # Establish a session
@@ -308,9 +313,10 @@ class ISIMApplication:
         # Record any SOAP fault that occurred during the call.
         except zeep.exceptions.Fault as fault:
             soap_fault = {'code': fault.code, 'message': fault.message, 'detail': {}}
-            detail_keys = fault.detail.keys()
-            for key in detail_keys:
-                soap_fault['detail'][key] = self.clients[service].wsdl.types.deserialize(fault.detail[key])
+            if fault.detail is not None:
+                detail_keys = fault.detail.keys()
+                for key in detail_keys:
+                    soap_fault['detail'][key] = self.clients[service].wsdl.types.deserialize(fault.detail[key])
 
         # Record whether the call resulted in a change
         # Anything other than methods with these prefixes should result in a change
@@ -477,4 +483,3 @@ class ISIMApplication:
             self.logger.debug("Response: " + str(response))
         else:
             self.logger.debug("Response: None")
-

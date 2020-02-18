@@ -1,6 +1,5 @@
 from typing import List, Dict, Optional
 from collections import OrderedDict
-import re
 
 from isimws.application.isimapplication import IBMResponse
 

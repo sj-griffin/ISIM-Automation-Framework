@@ -3,6 +3,7 @@ from collections import Counter
 import logging
 from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
 from isimws.utilities.tools import build_attribute, get_soap_attribute
+from isimws.utilities.dnencoder import DNEncoder
 import isimws
 
 logger = logging.getLogger(__name__)
@@ -88,12 +89,13 @@ def get(isim_application: ISIMApplication, role_dn: str, check_mode=False, force
 
 
 def apply(isim_application: ISIMApplication,
+          organization: str,
           container_dn: str,
           name: str,
           role_classification: str,
           description: Optional[str] = None,
-          role_owners: Optional[List[str]] = None,
-          user_owners: Optional[List[str]] = None,
+          role_owner_names: Optional[List[str]] = None,
+          user_owner_names: Optional[List[str]] = None,
           enable_access: bool = None,
           common_access: bool = None,
           access_type: Optional[str] = None,
@@ -111,12 +113,13 @@ def apply(isim_application: ISIMApplication,
         used to identify the role. If they don't match an existing role, a new role will be created with the specified
         name and container_dn.
     :param isim_application: The ISIMApplication instance to connect to.
+    :param organization: The name of the organization the role is part of.
     :param container_dn: The DN of the container (business unit) that the role exists in.
     :param name: The role name.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
-    :param role_owners: A list of DNs corresponding to the roles that own this role.
-    :param user_owners: A list of DNs corresponding to the users that own this role.
+    :param role_owner_names: A list of role names for the roles that own this role.
+    :param user_owner_names: A list of uids for the users that own this role.
     :param enable_access: Set to True to enable access for the role.
     :param common_access: Set to True to show the role as a common access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -135,22 +138,23 @@ def apply(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(organization, str) and len(organization) > 0 and
+            isinstance(container_dn, str) and len(container_dn) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(role_classification, str) and len(role_classification) > 0):
-        raise ValueError("Invalid role configuration. container_dn, name, and role_classification must have "
-                         "non-empty string values.")
+        raise ValueError("Invalid role configuration. organization, container_dn, name, and role_classification must "
+                         "have non-empty string values.")
 
     # If any values are set to None, they must be replaced with empty values. This is because these values will be
     # passed to methods that interpret None as 'no change', whereas we want them to be explicitly set to empty values.
     if description is None:
         description = ""
 
-    if role_owners is None:
-        role_owners = []
+    if role_owner_names is None:
+        role_owner_names = []
 
-    if user_owners is None:
-        user_owners = []
+    if user_owner_names is None:
+        user_owner_names = []
 
     if enable_access is None:
         enable_access = False
@@ -175,6 +179,20 @@ def apply(isim_application: ISIMApplication,
 
     if assignment_attributes is None:
         assignment_attributes = []
+
+    # Convert the role and user owner names into DNs that can be passed to the SOAP API
+    dn_encoder = DNEncoder(isim_application)
+    role_owner_dns = []
+    for role_owner_name in role_owner_names:
+        role_owner_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,
+                                                           name=str(role_owner_name),
+                                                           object_type='role'))
+
+    user_owner_dns = []
+    for user_owner_name in user_owner_names:
+        user_owner_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,
+                                                           name=str(user_owner_name),
+                                                           object_type='person'))
 
     # Search for instances with the specified name in the specified container
     search_response = search(
@@ -205,8 +223,8 @@ def apply(isim_application: ISIMApplication,
                 name=name,
                 role_classification=role_classification,
                 description=description,
-                role_owners=role_owners,
-                user_owners=user_owners,
+                role_owners=role_owner_dns,
+                user_owners=user_owner_dns,
                 enable_access=enable_access,
                 common_access=common_access,
                 access_type=access_type,
@@ -252,20 +270,20 @@ def apply(isim_application: ISIMApplication,
             description = None  # set to None so that no change occurs
 
         existing_owners = get_soap_attribute(existing_role, 'owner')
-        new_owners = role_owners + user_owners
+        new_owners = role_owner_dns + user_owner_dns
         if existing_owners is None:
             if new_owners != []:
                 modify_required = True
             else:
                 # set to None so that no change occurs
-                role_owners = None
-                user_owners = None
+                role_owner_dns = None
+                user_owner_dns = None
         elif Counter(new_owners) != Counter(existing_owners):
             modify_required = True
         else:
             # set to None so that no change occurs
-            role_owners = None
-            user_owners = None
+            role_owner_dns = None
+            user_owner_dns = None
 
         existing_access_setting = get_soap_attribute(existing_role, 'eraccessoption')
         if existing_access_setting is None:
@@ -384,8 +402,8 @@ def apply(isim_application: ISIMApplication,
                     role_dn=existing_dn,
                     role_classification=role_classification,
                     description=description,
-                    role_owners=role_owners,
-                    user_owners=user_owners,
+                    role_owners=role_owner_dns,
+                    user_owners=user_owner_dns,
                     enable_access=enable_access,
                     common_access=common_access,
                     access_type=access_type,
