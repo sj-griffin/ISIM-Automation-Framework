@@ -3,6 +3,7 @@ import logging
 from collections import Counter
 from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
 from isimws.utilities.tools import build_attribute, get_soap_attribute, list_soap_attribute_keys
+from isimws.utilities.dnencoder import DNEncoder
 import isimws
 
 logger = logging.getLogger(__name__)
@@ -77,12 +78,13 @@ def get(isim_application: ISIMApplication, service_dn: str, check_mode=False, fo
 
 
 def apply_account_service(isim_application: ISIMApplication,
+                          organization: str,
                           container_dn: str,
                           name: str,
                           service_type: str,
                           description: Optional[str] = None,
-                          owner: Optional[str] = None,
-                          service_prerequisite: Optional[str] = None,
+                          owner_name: Optional[str] = None,
+                          service_prerequisite_name: Optional[str] = None,
                           define_access: bool = None,
                           access_name: Optional[str] = None,
                           access_type: Optional[str] = None,
@@ -104,14 +106,15 @@ def apply_account_service(isim_application: ISIMApplication,
         The service_type of an existing service cannot be changed either. To do this you will need to delete the old
         service and create a new one.
     :param isim_application: The ISIMApplication instance to connect to.
+    :param organization: The name of the organization the service is part of.
     :param container_dn: The DN of the container (business unit) that the service exists in.
     :param name: The service name.
     :param service_type: The type of service to create. Corresponds to the erobjectprofilename attribute in LDAP.
         Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
         'PosixLinuxProfile', 'PosixSolarisProfile', 'WinLocalProfile', or 'HostedService'.
     :param description: A description of the service.
-    :param owner: A DN corresponding to the user that owns the service.
-    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param owner_name: The uid of the user that owns the service.
+    :param service_prerequisite_name: The name of the service that is a prerequisite for this one.
     :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -132,7 +135,8 @@ def apply_account_service(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(organization, str) and len(organization) > 0 and
+            isinstance(container_dn, str) and len(container_dn) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(service_type, str) and len(service_type) > 0 and
             isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
@@ -149,11 +153,11 @@ def apply_account_service(isim_application: ISIMApplication,
     if description is None:
         description = ""
 
-    if owner is None:
-        owner = ""
+    if owner_name is None:
+        owner_name = ""
 
-    if service_prerequisite is None:
-        service_prerequisite = ""
+    if service_prerequisite_name is None:
+        service_prerequisite_name = ""
 
     if define_access is None:
         define_access = False
@@ -183,6 +187,23 @@ def apply_account_service(isim_application: ISIMApplication,
         if configuration[key] is None:
             configuration[key] = ""
 
+    # Convert the owner name and service prerequisite name into DNs that can be passed to the SOAP API
+    dn_encoder = DNEncoder(isim_application)
+
+    if owner_name != "":
+        owner_dn = dn_encoder.encode_to_isim_dn(organization=organization,
+                                                name=str(owner_name),
+                                                object_type='person')
+    else:
+        owner_dn = ""
+
+    if service_prerequisite_name != "":
+        service_prerequisite_dn = dn_encoder.encode_to_isim_dn(organization=organization,
+                                                               name=str(service_prerequisite_name),
+                                                               object_type='service')
+    else:
+        service_prerequisite_dn = ""
+
     # Search for instances with the specified name in the specified container
     search_response = search(
         isim_application=isim_application,
@@ -211,8 +232,8 @@ def apply_account_service(isim_application: ISIMApplication,
                                            name=name,
                                            service_type=service_type,
                                            description=description,
-                                           owner=owner,
-                                           service_prerequisite=service_prerequisite,
+                                           owner=owner_dn,
+                                           service_prerequisite=service_prerequisite_dn,
                                            define_access=define_access,
                                            access_name=access_name,
                                            access_type=access_type,
@@ -251,25 +272,25 @@ def apply_account_service(isim_application: ISIMApplication,
 
         existing_owner = get_soap_attribute(existing_service, 'owner')
         if existing_owner is None:
-            if owner != '':
+            if owner_dn != '':
                 modify_required = True
             else:
                 owner = None  # set to None so that no change occurs
-        elif owner != existing_owner[0]:
+        elif owner_dn != existing_owner[0]:
             modify_required = True
         else:
-            owner = None  # set to None so that no change occurs
+            owner_dn = None  # set to None so that no change occurs
 
         existing_service_prerequisite = get_soap_attribute(existing_service, 'erprerequisite')
         if existing_service_prerequisite is None:
-            if service_prerequisite != '':
+            if service_prerequisite_dn != '':
                 modify_required = True
             else:
                 service_prerequisite = None  # set to None so that no change occurs
-        elif service_prerequisite != existing_service_prerequisite[0]:
+        elif service_prerequisite_dn != existing_service_prerequisite[0]:
             modify_required = True
         else:
-            service_prerequisite = None  # set to None so that no change occurs
+            service_prerequisite_dn = None  # set to None so that no change occurs
 
         existing_access_setting = get_soap_attribute(existing_service, 'eraccessoption')
         if existing_access_setting is None:
@@ -455,8 +476,8 @@ def apply_account_service(isim_application: ISIMApplication,
                     isim_application=isim_application,
                     service_dn=existing_dn,
                     description=description,
-                    owner=owner,
-                    service_prerequisite=service_prerequisite,
+                    owner=owner_dn,
+                    service_prerequisite=service_prerequisite_dn,
                     define_access=define_access,
                     access_name=access_name,
                     access_type=access_type,
