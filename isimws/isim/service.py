@@ -140,7 +140,7 @@ def apply_account_service(isim_application: ISIMApplication,
             isinstance(name, str) and len(name) > 0 and
             isinstance(service_type, str) and len(service_type) > 0 and
             isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
-        raise ValueError("Invalid service configuration. container_dn, name, and service_type must have "
+        raise ValueError("Invalid service configuration. organization, container_dn, name, and service_type must have "
                          "non-empty string values. configuration must be a non-empty dictionary.")
 
     if define_access is True:

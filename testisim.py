@@ -128,33 +128,34 @@ if __name__ == "__main__":
     #     policy_name="test"
     # ))
     #
-    # # Idempotently apply a provisioning policy configuration
-    # print("Applying a provisioning policy configuration...")
-    # pretty_print(isimws.isim.provisioningpolicy.apply(
-    #     isim_application=isim_server,
-    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     name="Provisioning policy test 1",
-    #     priority=50,
-    #     description="Here's a description",
-    #     keywords="here are some keywords",
-    #     caption="Here's a caption",
-    #     available_to_subunits=False,
-    #     enabled=True,
-    #     membership_type="all",
-    #     membership_roles=[],
-    #     entitlements=[
-    #         {
-    #             'automatic': False,
-    #             'ownership_type': 'all',
-    #             'target_type': 'all',
-    #             'service_type': None,
-    #             'service_dn': None,
-    #             'workflow': None
-    #         }
-    #     ],
-    #     check_mode=False,
-    #     force=False
-    # ))
+    # Idempotently apply a provisioning policy configuration
+    print("Applying a provisioning policy configuration...")
+    pretty_print(isimws.isim.provisioningpolicy.apply(
+        isim_application=isim_server,
+        organization='demo',
+        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+        name="Provisioning policy test 1",
+        priority=50,
+        description="Here's a description",
+        keywords="here are some keywords",
+        caption="Here's a caption",
+        available_to_subunits=False,
+        enabled=True,
+        membership_type="roles",
+        membership_role_names=['new-role'],
+        entitlements=[
+            {
+                'automatic': False,
+                'ownership_type': 'all',
+                'target_type': 'specific',
+                'service_type': None,
+                'service_name': 'ITIM Service',
+                'workflow_name': 'Default Account Request Workflow'
+            }
+        ],
+        check_mode=False,
+        force=False
+    ))
 
 
     # pretty_print(isimws.isim.provisioningpolicy.apply(
@@ -215,38 +216,38 @@ if __name__ == "__main__":
     #     service_dn="erglobalid=5621731231346846233,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com"
     # ))
     #
-    # Idempotently apply an account service configuration
-    print("Applying an account service configuration...")
-    pretty_print(isimws.isim.service.apply_account_service(
-        isim_application=isim_server,
-        organization='demo',
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name="soap-test-service 7",
-        service_type="ADprofile",
-        description="Here's a description",
-        owner_name="testuser",
-        service_prerequisite_name="ITIM Service",
-        define_access=True,
-        access_name="Test access",
-        access_type="role",
-        access_description="Access description...",
-        access_image_uri="test.test",
-        access_search_terms=['search', 'term'],
-        access_additional_info="More information",
-        access_badges=[{'text': 'A badge', 'colour': 'blue'}],
-        configuration={
-            'erURL': 'demo.demo',
-            'erUid': 'admin',
-            'erPassword': 'Object00',
-            'erADBasePoint': 'abc',
-            'erADGroupBasePoint': 'def',
-            'erADDomainUser': 'ghi',
-            'erADDomainPassword': 'jkl',
-            'erURI': ['test1', 'test2']
-        },
-        check_mode=False,
-        force=False
-    ))
+    # # Idempotently apply an account service configuration
+    # print("Applying an account service configuration...")
+    # pretty_print(isimws.isim.service.apply_account_service(
+    #     isim_application=isim_server,
+    #     organization='demo',
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="soap-test-service 7",
+    #     service_type="ADprofile",
+    #     description="Here's a description",
+    #     owner_name="testuser",
+    #     service_prerequisite_name="ITIM Service",
+    #     define_access=True,
+    #     access_name="Test access",
+    #     access_type="role",
+    #     access_description="Access description...",
+    #     access_image_uri="test.test",
+    #     access_search_terms=['search', 'term'],
+    #     access_additional_info="More information",
+    #     access_badges=[{'text': 'A badge', 'colour': 'blue'}],
+    #     configuration={
+    #         'erURL': 'demo.demo',
+    #         'erUid': 'admin',
+    #         'erPassword': 'Object00',
+    #         'erADBasePoint': 'abc',
+    #         'erADGroupBasePoint': 'def',
+    #         'erADDomainUser': 'ghi',
+    #         'erADDomainPassword': 'jkl',
+    #         'erURI': ['test1', 'test2']
+    #     },
+    #     check_mode=False,
+    #     force=False
+    # ))
     #
     # # Idempotently apply an identity feed configuration
     # print("Applying an identity feed configuration...")
