@@ -78,8 +78,7 @@ def get(isim_application: ISIMApplication, service_dn: str, check_mode=False, fo
 
 
 def apply_account_service(isim_application: ISIMApplication,
-                          organization: str,
-                          container_dn: str,
+                          container_path: str,
                           name: str,
                           service_type: str,
                           description: Optional[str] = None,
@@ -106,8 +105,9 @@ def apply_account_service(isim_application: ISIMApplication,
         The service_type of an existing service cannot be changed either. To do this you will need to delete the old
         service and create a new one.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param organization: The name of the organization the service is part of.
-    :param container_dn: The DN of the container (business unit) that the service exists in.
+    :param container_path: A path representing the container (business unit) that the service exists in. The expected
+        format is '//organization_name//profile::container_name//profile::container_name'. Valid values for profile
+        are 'ou' (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad' (admin domain).
     :param name: The service name.
     :param service_type: The type of service to create. Corresponds to the erobjectprofilename attribute in LDAP.
         Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
@@ -135,13 +135,12 @@ def apply_account_service(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(organization, str) and len(organization) > 0 and
-            isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(container_path, str) and len(container_path) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(service_type, str) and len(service_type) > 0 and
             isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
-        raise ValueError("Invalid service configuration. organization, container_dn, name, and service_type must have "
-                         "non-empty string values. configuration must be a non-empty dictionary.")
+        raise ValueError("Invalid service configuration. organization, container_path, name, and service_type must "
+                         "have non-empty string values. configuration must be a non-empty dictionary.")
 
     if define_access is True:
         if not (isinstance(access_name, str) and len(access_name) > 0):
@@ -187,9 +186,21 @@ def apply_account_service(isim_application: ISIMApplication,
         if configuration[key] is None:
             configuration[key] = ""
 
-    # Convert the owner name and service prerequisite name into DNs that can be passed to the SOAP API
-    dn_encoder = DNEncoder(isim_application)
+    # convert each configuration key to lower case
+    list_of_keys = list(configuration.keys())
+    for key_name in list_of_keys:
+        if key_name.lower() != key_name:
+            configuration[key_name.lower()] = configuration[key_name]
+            del configuration[key_name]
 
+    # Convert the container path into a DN that can be passed to the SOAP API. This also validates the container path.
+    dn_encoder = DNEncoder(isim_application)
+    container_dn = dn_encoder.container_path_to_dn(container_path)
+
+    # Extract the organisation name from the container path.
+    organization = container_path.split('//')[1]
+
+    # Convert the owner name and service prerequisite name into DNs that can be passed to the SOAP API
     if owner_name != "":
         owner_dn = dn_encoder.encode_to_isim_dn(organization=organization,
                                                 name=str(owner_name),
@@ -499,7 +510,7 @@ def apply_account_service(isim_application: ISIMApplication,
 
 
 def apply_identity_feed(isim_application: ISIMApplication,
-                        container_dn: str,
+                        container_path: str,
                         name: str,
                         service_type: str,
                         description: Optional[str] = None,
@@ -519,7 +530,9 @@ def apply_identity_feed(isim_application: ISIMApplication,
         The service_type of an existing service cannot be changed either. To do this you will need to delete the old
         service and create a new one.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param container_dn: The DN of the container (business unit) that the feed exists in.
+    :param container_path: A path representing the container (business unit) that the feed exists in. The expected
+        format is '//organization_name//profile::container_name//profile::container_name'. Valid values for profile
+        are 'ou' (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad' (admin domain).
     :param name: The service name.
     :param service_type: The type of feed to create. Corresponds to the erobjectprofilename attribute in LDAP.
         Valid types out-of-the-box are: 'ADFeed' (AD OrganizationalPerson identity feed), 'CSVFeed' (Comma separated
@@ -530,7 +543,10 @@ def apply_identity_feed(isim_application: ISIMApplication,
     :param evaluate_sod: Set to True to evaluate separation of duties policy when a workflow is used.
     :param placement_rule: The placement rule to use.
     :param configuration: A dict of key value pairs corresponding to the LDAP attributes specific to the profile
-        being used to create the feed.
+        being used to create the feed. When using the erNamingContexts attribute, you should specify containers as
+        paths, not DNs. The expected format is '//organization_name//profile::container_name//profile::container_name'.
+        Valid values for profile are 'ou' (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad'
+        (admin domain).
     :param check_mode: Set to True to enable check mode.
     :param force: Set to True to force execution regardless of current state. This will always result in a new service
         being created, regardless of whether a service with the same name in the same container already exists. Use with
@@ -540,11 +556,11 @@ def apply_identity_feed(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(container_path, str) and len(container_path) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(service_type, str) and len(service_type) > 0 and
             isinstance(configuration, Dict) and len(list(configuration.keys())) > 0):
-        raise ValueError("Invalid service configuration. container_dn, name, and service_type must have "
+        raise ValueError("Invalid service configuration. container_path, name, and service_type must have "
                          "non-empty string values. configuration must be a non-empty dictionary.")
 
     # If any values are set to None, they must be replaced with empty values. This is because these values will be
@@ -564,6 +580,22 @@ def apply_identity_feed(isim_application: ISIMApplication,
     for key in configuration:
         if configuration[key] is None:
             configuration[key] = ""
+
+    # convert each configuration key to lower case
+    list_of_keys = list(configuration.keys())
+    for key_name in list_of_keys:
+        if key_name.lower() != key_name:
+            configuration[key_name.lower()] = configuration[key_name]
+            del configuration[key_name]
+
+    # Convert the container path into a DN that can be passed to the SOAP API. This also validates the container path.
+    dn_encoder = DNEncoder(isim_application)
+    container_dn = dn_encoder.container_path_to_dn(container_path)
+
+    # Convert the values of the erNamingContexts configuration attribute from paths into DNs
+    if 'ernamingcontexts' in configuration:
+        for index in range(0, len(configuration['ernamingcontexts'])):
+            configuration['ernamingcontexts'][index] = dn_encoder.container_path_to_dn(configuration['ernamingcontexts'][index])
 
     # Search for instances with the specified name in the specified container
     search_response = search(
