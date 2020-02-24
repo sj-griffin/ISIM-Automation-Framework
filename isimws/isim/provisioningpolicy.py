@@ -54,8 +54,7 @@ def search(isim_application: ISIMApplication,
 
 
 def apply(isim_application: ISIMApplication,
-          organization: str,
-          container_dn: str,
+          container_path: str,
           name: str,
           priority: int,
           description: Optional[str] = None,
@@ -77,8 +76,9 @@ def apply(isim_application: ISIMApplication,
         they don't match an existing provisioning policy, a new provisioning policy will be created with the specified
         name and container_dn.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param organization: The name of the organization the policy is part of.
-    :param container_dn: The DN of the container (business unit) that the provisioning policy exists in.
+    :param container_path: A path representing the container (business unit) that the policy exists in. The expected
+            format is '//organization_name//profile::container_name//profile::container_name'. Valid values for profile
+            are 'ou' (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad' (admin domain).
     :param name: The provisioning policy name.
     :param priority: An integer greater than 0 representing the priority of the policy.
     :param description: A description for the policy.
@@ -118,8 +118,7 @@ def apply(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(organization, str) and len(organization) > 0 and
-            isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(container_path, str) and len(container_path) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(priority, int) and priority > 0):
         raise ValueError("Invalid provisioning policy configuration. organization, container_dn and name must have "
@@ -157,6 +156,13 @@ def apply(isim_application: ISIMApplication,
 
     if enabled is None:
         enabled = False
+
+    # Convert the container path into a DN that can be passed to the SOAP API. This also validates the container path.
+    dn_encoder = DNEncoder(isim_application)
+    container_dn = dn_encoder.container_path_to_dn(container_path)
+
+    # Extract the organisation name from the container path.
+    organization = container_path.split('//')[1]
 
     # Convert the membership role names into DNs that can be passed to the SOAP API
     dn_encoder = DNEncoder(isim_application)
