@@ -89,8 +89,7 @@ def get(isim_application: ISIMApplication, role_dn: str, check_mode=False, force
 
 
 def apply(isim_application: ISIMApplication,
-          organization: str,
-          container_dn: str,
+          container_path: str,
           name: str,
           role_classification: str,
           description: Optional[str] = None,
@@ -109,12 +108,13 @@ def apply(isim_application: ISIMApplication,
     """
     Apply a role configuration. This function will dynamically choose whether to to create or modify based on whether
         a role with the same name exists in the same container. Only attributes which differ from the existing role
-        will be changed. Note that the name and container_dn of an existing role can't be changed because they are
+        will be changed. Note that the name and container_path of an existing role can't be changed because they are
         used to identify the role. If they don't match an existing role, a new role will be created with the specified
-        name and container_dn.
+        name and container_path.
     :param isim_application: The ISIMApplication instance to connect to.
-    :param organization: The name of the organization the role is part of.
-    :param container_dn: The DN of the container (business unit) that the role exists in.
+    :param container_path: A path representing the container (business unit) that the role exists in. The expected
+            format is '//organization_name//profile::container_name//profile::container_name'. Valid values for profile
+            are 'ou' (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad' (admin domain).
     :param name: The role name.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
@@ -138,11 +138,10 @@ def apply(isim_application: ISIMApplication,
     """
 
     # Check that the compulsory attributes are set properly
-    if not (isinstance(organization, str) and len(organization) > 0 and
-            isinstance(container_dn, str) and len(container_dn) > 0 and
+    if not (isinstance(container_path, str) and len(container_path) > 0 and
             isinstance(name, str) and len(name) > 0 and
             isinstance(role_classification, str) and len(role_classification) > 0):
-        raise ValueError("Invalid role configuration. organization, container_dn, name, and role_classification must "
+        raise ValueError("Invalid role configuration. container_path, name, and role_classification must "
                          "have non-empty string values.")
 
     # If any values are set to None, they must be replaced with empty values. This is because these values will be
@@ -180,8 +179,14 @@ def apply(isim_application: ISIMApplication,
     if assignment_attributes is None:
         assignment_attributes = []
 
-    # Convert the role and user owner names into DNs that can be passed to the SOAP API
+    # Convert the container path into a DN that can be passed to the SOAP API. This also validates the container path.
     dn_encoder = DNEncoder(isim_application)
+    container_dn = dn_encoder.container_path_to_dn(container_path)
+
+    # Extract the organisation name from the container path.
+    organization = container_path.split('//')[1]
+
+    # Convert the role and user owner names into DNs that can be passed to the SOAP API
     role_owner_dns = []
     for role_owner_name in role_owner_names:
         role_owner_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,

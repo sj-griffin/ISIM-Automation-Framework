@@ -86,6 +86,12 @@ if __name__ == "__main__":
 
     # dn_encoder = DNEncoder(isim_server)
     #
+    # # Convert a path to a DN
+    # print("Converting a path to a DN...")
+    # pretty_print(dn_encoder.container_path_to_dn('//demo//lo::Sydney//ou::ou1//bp::testing'))
+    # pretty_print(dn_encoder.container_path_to_dn('//IBM'))
+
+    #
     # # Decode a DN
     # print("Decoding a DN...")
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'))
@@ -128,34 +134,34 @@ if __name__ == "__main__":
     #     policy_name="test"
     # ))
     #
-    # Idempotently apply a provisioning policy configuration
-    print("Applying a provisioning policy configuration...")
-    pretty_print(isimws.isim.provisioningpolicy.apply(
-        isim_application=isim_server,
-        organization='demo',
-        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-        name="Provisioning policy test 1",
-        priority=50,
-        description="Here's a description",
-        keywords="here are some keywords",
-        caption="Here's a caption",
-        available_to_subunits=False,
-        enabled=True,
-        membership_type="roles",
-        membership_role_names=['new-role'],
-        entitlements=[
-            {
-                'automatic': False,
-                'ownership_type': 'all',
-                'target_type': 'specific',
-                'service_type': None,
-                'service_name': 'ITIM Service',
-                'workflow_name': 'Default Account Request Workflow'
-            }
-        ],
-        check_mode=False,
-        force=False
-    ))
+    # # Idempotently apply a provisioning policy configuration
+    # print("Applying a provisioning policy configuration...")
+    # pretty_print(isimws.isim.provisioningpolicy.apply(
+    #     isim_application=isim_server,
+    #     organization='demo',
+    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     name="Provisioning policy test 1",
+    #     priority=50,
+    #     description="Here's a description",
+    #     keywords="here are some keywords",
+    #     caption="Here's a caption",
+    #     available_to_subunits=False,
+    #     enabled=True,
+    #     membership_type="roles",
+    #     membership_role_names=['new-role'],
+    #     entitlements=[
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'all',
+    #             'target_type': 'specific',
+    #             'service_type': None,
+    #             'service_name': 'ITIM Service',
+    #             'workflow_name': 'Default Account Request Workflow'
+    #         }
+    #     ],
+    #     check_mode=False,
+    #     force=False
+    # ))
 
 
     # pretty_print(isimws.isim.provisioningpolicy.apply(
@@ -273,31 +279,30 @@ if __name__ == "__main__":
     #     force=False
     # ))
 
-    # # Idempotently apply a role configuration
-    # print("Applying a role configuration...")
-    # pretty_print(isimws.isim.role.apply(
-    #     isim_application=isim_server,
-    #     organization='demo',
-    #     container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     name='Applied Role 77',
-    #     role_classification='business',
-    #     description='A role to test the SOAP API.',
-    #     role_owner_names=[
-    #         "new-role"],
-    #     user_owner_names=[
-    #         "testuser"],
-    #     enable_access=True,
-    #     common_access=True,
-    #     access_type='emailgroup',
-    #     access_image_uri="test.demo/test",
-    #     access_search_terms=["test", "testing"],
-    #     access_additional_info="Some additional information",
-    #     access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
-    #                    {'text': 'A red badge', 'colour': 'red'}],
-    #     assignment_attributes=['attribute1', 'attribute2'],
-    #     check_mode=False,
-    #     force=False
-    # ))
+    # Idempotently apply a role configuration
+    print("Applying a role configuration...")
+    pretty_print(isimws.isim.role.apply(
+        isim_application=isim_server,
+        container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
+        name='Applied Role 78',
+        role_classification='business',
+        description='A role to test the SOAP API.',
+        role_owner_names=[
+            "new-role"],
+        user_owner_names=[
+            "testuser"],
+        enable_access=True,
+        common_access=True,
+        access_type='emailgroup',
+        access_image_uri="test.demo/test",
+        access_search_terms=["test", "testing", "test1"],
+        access_additional_info="Some additional information",
+        access_badges=[{'text': 'An orange badge', 'colour': 'orange'},
+                       {'text': 'A red badge', 'colour': 'red'}],
+        assignment_attributes=['attribute1', 'attribute2'],
+        check_mode=False,
+        force=False
+    ))
 
     # Search for roles
     # print("Searching for roles...")

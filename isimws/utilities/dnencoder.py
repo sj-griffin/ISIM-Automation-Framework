@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
 from isimws.application.isimapplication import ISIMApplication, IBMResponse
+from isimws.isim import container
 
 
 class DNEncoder:
@@ -33,7 +34,7 @@ class DNEncoder:
         :param dn: An ISIM DN referring to a non-container object.
         :return: A Dict containing the keys 'name', 'type', and 'organization'.
         """
-        # Extract the organization component by comparing the CN to known organization components
+        # Extract the organization component by comparing the DN to known organization components
         non_org_component = None
         organization_name = None
         for org_component in self.dn_map:
@@ -58,7 +59,7 @@ class DNEncoder:
 
         search_arguments_object = search_arguments_type()
 
-        # Extract the type component by comparing the CN to known type components
+        # Extract the type component by comparing the DN to known type components
         if non_org_component.endswith('ou=roles'):
             object_type = 'role'
             search_arguments_object['category'] = 'Role'
@@ -131,7 +132,7 @@ class DNEncoder:
         # If an error was encountered and ignored, raise an error.
         if search_arguments_type_response['rc'] != 0:
             raise ValueError('Cannot retrieve object information for ' + str(object_type) + ' ' + str(name) + 'from '
-                             'the application server.')
+                                                                                                              'the application server.')
         search_arguments_type = search_arguments_type_response['data']
 
         data = []
@@ -147,7 +148,8 @@ class DNEncoder:
         elif object_type.lower() == 'person':
             ou_component = 'ou=people'
             search_arguments_object['category'] = 'Person'
-            search_arguments_object['filter'] = '(uid=' + str(name) + ')'  # we don't search based on erparent for a person object
+            search_arguments_object['filter'] = '(uid=' + str(
+                name) + ')'  # we don't search based on erparent for a person object
         elif object_type.lower() == 'service':
             ou_component = 'ou=services'
             search_arguments_object['category'] = 'Service'
@@ -174,7 +176,7 @@ class DNEncoder:
                                                              data)
         if response['rc'] != 0:
             raise ValueError('Cannot retrieve object information for ' + str(object_type) + ' ' + str(name) + 'from '
-                             'the application server.')
+                                                                                                              'the application server.')
 
         # There should only be one result from the search.
         if len(response['data']) == 0:
@@ -191,3 +193,80 @@ class DNEncoder:
             # This may need to be changed. Need to test on a system with a large number of people objects.
             dn = 'erglobalid=' + erglobalid + ',ou=0,' + ou_component + ',' + organization_component
         return dn
+
+    def container_path_to_dn(self, path: str) -> str:
+        """
+        Takes a path referring to an ISIM organizational container and converts it to a valid ISIM DN. This function
+            assumes that all containers with the same parent have unique names.
+        :param path: The path to convert. The expected format is
+            '//organization_name//profile::container_name//profile::container_name'. Valid values for profile are 'ou'
+            (organizational unit), 'bp' (business partner unit), 'lo' (location), or 'ad' (admin domain).
+        :return: An ISIM DN referring to the specified container.
+        """
+        # Validate the path format
+        components = path.split('//')
+        if len(components) < 2:
+            raise ValueError(str(path) + " is not a valid path. Paths must be of the format "
+                                         "'//organization_name//profile::container_name//profile::container_name'.")
+        if components[0] != "":
+            raise ValueError(str(path) + " is not a valid path. Paths must be of the format "
+                                         "'//organization_name//profile::container_name//profile::container_name'.")
+        for index in range(1, len(components)):
+            if len(components[index]) == 0:
+                raise ValueError(str(path) + " is not a valid path. Paths must be of the format "
+                                             "'//organization_name//profile::container_name//profile::container_name'.")
+
+        # Convert the organization name to a DN using the existing map.
+        if components[1] not in self.organization_map:
+            raise ValueError("The organization '" + components[1] + "' could not be found.")
+
+        organization_dn = self.organization_map[components[1]]
+
+        # No further action is required if the organization is the only component in the path
+        if len(components) == 2:
+            return organization_dn
+
+        parent_dn = organization_dn
+        next_component_index = 2
+
+        # Iterate through the components in the path, searching under each container for the next container in the path.
+        while next_component_index < len(components):
+            # Search among the parent's children for the next container in the path.
+            next_component = components[next_component_index].split('::')
+            if len(next_component) != 2:
+                raise ValueError(str(path) + " is not a valid path. Paths must be of the format "
+                                             "'//organization_name//profile::container_name//profile::container_name'.")
+
+            if next_component[0] == 'ou':
+                next_component_profile = 'organizationalunit'
+            elif next_component[0] == 'bp':
+                next_component_profile = 'businesspartnerunit'
+            elif next_component[0] == 'lo':
+                next_component_profile = 'location'
+            elif next_component[0] == 'ad':
+                next_component_profile = 'admindomain'
+            else:
+                raise ValueError(next_component[0] + " is not a valid profile. Valid values for profile are 'ou' "
+                                                     "(organizational unit), 'bp' (business partner unit), 'lo' "
+                                                     "(location), or 'ad' (admin domain).")
+
+            next_component_name = next_component[1]
+
+            search_results = container.search(self.isim_application,
+                                              parent_dn,
+                                              next_component_name,
+                                              next_component_profile
+                                              )
+
+            if len(search_results['data']) == 0:
+                raise ValueError("The " + next_component_profile + " container '" + next_component_name + "' could not "
+                                 "be found. Make sure that the path and profile is correct.")
+            elif len(search_results['data']) > 1:
+                raise ValueError("Could not uniquely identify the container '" + next_component_name + "'. There was "
+                                 "more than one container found with the same name, profile, and parent.")
+
+            # Get the DN of the found container so that it's children can be searched on the next iteration.
+            parent_dn = search_results['data'][0]['itimDN']
+            next_component_index += 1
+
+        return parent_dn
