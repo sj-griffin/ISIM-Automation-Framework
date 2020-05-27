@@ -1,7 +1,6 @@
 from typing import List, Dict, Optional
 import logging
 from isimws.application.isimapplication import ISIMApplication, IBMResponse, create_return_object
-from isimws.utilities.tools import build_attribute
 from isimws.utilities.dnencoder import DNEncoder
 
 import isimws
@@ -63,7 +62,7 @@ def apply(isim_application: ISIMApplication,
           available_to_subunits: Optional[bool] = None,
           enabled: Optional[bool] = None,
           membership_type: Optional[str] = None,
-          membership_role_names: Optional[List[str]] = None,
+          membership_roles: Optional[List[tuple]] = None,
           entitlements: List[Dict] = [],
           check_mode=False,
           force=False) -> IBMResponse:
@@ -91,9 +90,9 @@ def apply(isim_application: ISIMApplication,
         are 'all' (for all users in the organization), 'other' (for all other users who are not granted to the
         entitlement(s) defined by this provisioning policy via other policies), or 'roles' (to specify specific roles
         using the membership_roles argument).
-    :param membership_role_names: A list of names of the roles to use to determine membership. This argument will be
-        ignored if membership_type is not set to 'roles'. This list cannot be empty if membership_type is set to
-        'roles'.
+    :param membership_roles: A list of tuples containing the container path and role name for each of the roles to use
+        to determine membership. This argument will be ignored if membership_type is not set to 'roles'. This list
+        cannot be empty if membership_type is set to 'roles'.
     :param entitlements: A list of dicts representing entitlements for the policy. This list must contain at least
         one entry. Each entry is expected to contain the following keys:
             {
@@ -104,9 +103,10 @@ def apply(isim_application: ISIMApplication,
                     specific service).
                 service_type: str # This attribute is only required if the target_type is set to 'type' or 'policy'.
                     Provide the exact name of the service profile to target. Note that it is case-sensitive.
-                service_name: str # This attribute is only required if the target_type is set to 'specific'. Provide the
-                    name of the service to target.
-                workflow_name: str # Set to the name of a workflow to use, or None to not use a workflow.
+                service: tuple # This attribute is only required if the target_type is set to 'specific'. Provide a
+                    tuple containing the container path and name of the service to target.
+                workflow: tuple # Set to a tuple containing the container path and name of a workflow to use, or None
+                    to not use a workflow.
             }
         Note: This API does not currently support adding service tags to entitlements.
     :param check_mode: Set to True to enable check mode.
@@ -133,19 +133,19 @@ def apply(isim_application: ISIMApplication,
         if 'automatic' not in keys or \
                 'ownership_type' not in keys or \
                 'target_type' not in keys or \
-                'workflow_name' not in keys:
+                'workflow' not in keys:
             raise ValueError('Missing expected key in entitlement.')
 
         if entitlement['target_type'] == 'type' or entitlement['target_type'] == 'policy':
             if 'service_type' not in keys:
                 raise ValueError('Missing expected key in entitlement.')
         elif entitlement['target_type'] == 'specific':
-            if 'service_name' not in keys:
+            if 'service' not in keys:
                 raise ValueError('Missing expected key in entitlement.')
 
     if membership_type == 'roles':
-        if membership_role_names is None or len(membership_role_names) < 1:
-            raise ValueError("The membership_role_names argument must contain a list with at least one entry if "
+        if membership_roles is None or len(membership_roles) < 1:
+            raise ValueError("The membership_roles argument must contain a list with at least one entry if "
                              "membership_type is set to 'roles'.")
 
     # Unlike with other object types, None will be interpreted as an empty value rather than as 'no change' by the
@@ -161,59 +161,43 @@ def apply(isim_application: ISIMApplication,
     dn_encoder = DNEncoder(isim_application)
     container_dn = dn_encoder.container_path_to_dn(container_path)
 
-    # Extract the organisation name from the container path.
-    organization = container_path.split('//')[1]
-
     # Convert the membership role names into DNs that can be passed to the SOAP API
     dn_encoder = DNEncoder(isim_application)
     membership_role_dns = []
-    for membership_role_name in membership_role_names:
-        membership_role_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,
-                                                                name=str(membership_role_name),
+    for membership_role in membership_roles:
+        membership_role_dns.append(dn_encoder.encode_to_isim_dn(container_path=str(membership_role[0]),
+                                                                name=str(membership_role[1]),
                                                                 object_type='role'))
 
-    # Convert the entitlement workflow and service names into DNs that can be passed to the SOAP API
+    # Convert the entitlement workflow and service attributes into DNs that can be passed to the SOAP API
     for entitlement in entitlements:
         keys = list(entitlement.keys())
 
-        if 'workflow_name' in keys:
-            if entitlement['workflow_name'] is not None:
-                entitlement['workflow'] = dn_encoder.encode_to_isim_dn(organization=organization,
-                                                                       name=str(entitlement['workflow_name']),
-                                                                       object_type='workflow')
+        if 'workflow' in keys:
+            if entitlement['workflow'] is not None:
+                entitlement['workflow_dn'] = dn_encoder.encode_to_isim_dn(container_path=str(entitlement['workflow'][0]),
+                                                                          name=str(entitlement['workflow'][1]),
+                                                                          object_type='workflow')
             else:
-                entitlement['workflow'] = None
-            del entitlement['workflow_name']
+                entitlement['workflow_dn'] = None
+            del entitlement['workflow']
 
-        if 'service_name' in keys:
-            if entitlement['service_name'] is not None:
-                entitlement['service_dn'] = dn_encoder.encode_to_isim_dn(organization=organization,
-                                                                         name=str(entitlement['service_name']),
+        if 'service' in keys:
+            if entitlement['service'] is not None:
+                entitlement['service_dn'] = dn_encoder.encode_to_isim_dn(container_path=str(entitlement['service'][0]),
+                                                                         name=str(entitlement['service'][1]),
                                                                          object_type='service')
             else:
                 entitlement['service_dn'] = None
-            del entitlement['service_name']
+            del entitlement['service']
 
-    # Search for instances with the specified name in the specified container
-    search_response = search(
-        isim_application=isim_application,
-        container_dn=container_dn,
-        policy_name=name
-    )
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if search_response['rc'] != 0:
-        return search_response
-    search_results = search_response['data']
+    # Resolve the instance with the specified name in the specified container
+    existing_policy = dn_encoder.get_unique_object(container_path=container_path,
+                                                   name=name,
+                                                   object_type='provisioningpolicy')
 
-    # Because the search function can return results with names containing the specified name, we need to confirm which
-    # results have the exact name that was searched for.
-    exact_matches = []
-    for result in search_results:
-        if result['name'] == name:
-            exact_matches.append(result)
-
-    if len(exact_matches) == 0 or force:
-        # If there are no results, create a new policy and return the response
+    if existing_policy is None or force:
+        # If the instance doesn't exist yet, create a new role and return the response
         if check_mode:
             return create_return_object(changed=True)
         else:
@@ -228,13 +212,12 @@ def apply(isim_application: ISIMApplication,
                 available_to_subunits=available_to_subunits,
                 enabled=enabled,
                 membership_type=membership_type,
-                membership_roles=membership_role_dns,
+                membership_role_dns=membership_role_dns,
                 entitlements=entitlements
             )
-    elif len(exact_matches) == 1:
-        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+    else:
+        # If an existing instance was found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_policy = exact_matches[0]
         modify_required = False
 
         existing_priority = existing_policy['priority']
@@ -358,7 +341,7 @@ def apply(isim_application: ISIMApplication,
                     if existing_entitlement['type'] == 0:
                         automatic_match = True
 
-                if existing_entitlement['processDN'] == entitlement['workflow']:
+                if existing_entitlement['processDN'] == entitlement['workflow_dn']:
                     workflow_match = True
 
                 if entitlement['ownership_type'].lower() == 'all':
@@ -407,17 +390,11 @@ def apply(isim_application: ISIMApplication,
                     available_to_subunits=available_to_subunits,
                     enabled=enabled,
                     membership_type=membership_type,
-                    membership_roles=membership_role_dns,
+                    membership_role_dns=membership_role_dns,
                     entitlements=entitlements
                 )
         else:
             return create_return_object(changed=False)
-
-    else:
-        return create_return_object(changed=False,
-                                    warnings=["More than one instance of the provisioning policy' " + name + "' was "
-                                              "found in container '" + container_dn + "'. No action was taken as it is "
-                                              "unclear which provisioning policy is being referred to."])
 
 
 def _create(isim_application: ISIMApplication,
@@ -430,7 +407,7 @@ def _create(isim_application: ISIMApplication,
             available_to_subunits: Optional[bool] = None,
             enabled: Optional[bool] = None,
             membership_type: Optional[str] = None,
-            membership_roles: Optional[List[str]] = None,
+            membership_role_dns: Optional[List[str]] = None,
             entitlements: List[Dict] = []) -> IBMResponse:
     """
     Create a provisioning policy. Due to differences in the SOAP API, this function works differently to the _create
@@ -451,7 +428,7 @@ def _create(isim_application: ISIMApplication,
         are 'all' (for all users in the organization), 'other' (for all other users who are not granted to the
         entitlement(s) defined by this provisioning policy via other policies), or 'roles' (to specify specific roles
         using the membership_roles argument).
-    :param membership_roles: A list of DNs of the roles to use to determine membership. This argument will be
+    :param membership_role_dns: A list of DNs of the roles to use to determine membership. This argument will be
         ignored if membership_type is not set to 'roles'. This list cannot be empty if membership_type is set to
         'roles'.
     :param entitlements: A list of dicts representing entitlements for the policy. This list must contain at least
@@ -466,7 +443,7 @@ def _create(isim_application: ISIMApplication,
                     Provide the exact name of the service profile to target. Note that it is case-sensitive.
                 service_dn: str # This attribute is only required if the target_type is set to 'specific'. Provide the
                     DN of the service to target.
-                workflow: str # Set to the DN of a workflow to use, or None to not use a workflow.
+                workflow_dn: str # Set to the DN of a workflow to use, or None to not use a workflow.
             }
         Note: This API does not currently support adding service tags to entitlements.
     :return: An IBMResponse object. If the call was successful, the data field will contain the Python dict
@@ -541,7 +518,7 @@ def _create(isim_application: ISIMApplication,
         available_to_subunits=available_to_subunits,
         enabled=enabled,
         membership_type=membership_type,
-        membership_roles=membership_roles,
+        membership_role_dns=membership_role_dns,
         entitlements=entitlements
     )
 
@@ -570,7 +547,7 @@ def _modify(isim_application: ISIMApplication,
             available_to_subunits: Optional[bool] = None,
             enabled: Optional[bool] = None,
             membership_type: Optional[str] = None,
-            membership_roles: Optional[List[str]] = None,
+            membership_role_dns: Optional[List[str]] = None,
             entitlements: List[Dict] = []) -> IBMResponse:
     """
     Modify an existing provisioning policy. Due to differences in the SOAP API, this function works differently to the
@@ -593,7 +570,7 @@ def _modify(isim_application: ISIMApplication,
         are 'all' (for all users in the organization), 'other' (for all other users who are not granted to the
         entitlement(s) defined by this provisioning policy via other policies), or 'roles' (to specify specific roles
         using the membership_roles argument).
-    :param membership_roles: A list of DNs of the roles to use to determine membership. This argument will be
+    :param membership_role_dns: A list of DNs of the roles to use to determine membership. This argument will be
         ignored if membership_type is not set to 'roles'. This list cannot be empty if membership_type is set to
         'roles'.
     :param entitlements: A list of dicts representing entitlements for the policy. This list must contain at least
@@ -608,7 +585,7 @@ def _modify(isim_application: ISIMApplication,
                     Provide the exact name of the service profile to target. Note that it is case-sensitive.
                 service_dn: str # This attribute is only required if the target_type is set to 'specific'. Provide the
                     DN of the service to target.
-                workflow: str # Set to the DN of a workflow to use, or None to not use a workflow.
+                workflow_dn: str # Set to the DN of a workflow to use, or None to not use a workflow.
             }
         Note: This API does not currently support adding service tags to entitlements.
     :return: An IBMResponse object. If the call was successful, the data field will contain the Python dict
@@ -683,7 +660,7 @@ def _modify(isim_application: ISIMApplication,
         available_to_subunits=available_to_subunits,
         enabled=enabled,
         membership_type=membership_type,
-        membership_roles=membership_roles,
+        membership_role_dns=membership_role_dns,
         entitlements=entitlements
     )
 
@@ -716,7 +693,7 @@ def _setup_policy_object(policy_type,
                          available_to_subunits: Optional[bool] = None,
                          enabled: Optional[bool] = None,
                          membership_type: Optional[str] = None,
-                         membership_roles: Optional[List[str]] = None,
+                         membership_role_dns: Optional[List[str]] = None,
                          entitlements: List[Dict] = []):
     """
     Setup the policy object used in the create and modify SOAP requests.
@@ -737,7 +714,7 @@ def _setup_policy_object(policy_type,
         are 'all' (for all users in the organization), 'other' (for all other users who are not granted to the
         entitlement(s) defined by this provisioning policy via other policies), or 'roles' (to specify specific roles
         using the membership_roles argument).
-    :param membership_roles: A list of DNs of the roles to use to determine membership. This argument will be
+    :param membership_role_dns: A list of DNs of the roles to use to determine membership. This argument will be
         ignored if membership_type is not set to 'roles'. This list cannot be empty if membership_type is set to
         'roles'.
     :param entitlements: A list of dicts representing entitlements for the policy. This list must contain at least
@@ -752,7 +729,7 @@ def _setup_policy_object(policy_type,
                     Provide the exact name of the service profile to target. Note that it is case-sensitive.
                 service_dn: str # This attribute is only required if the target_type is set to 'specific'. Provide the
                     DN of the service to target.
-                workflow: str # Set to the DN of a workflow to use, or None to not use a workflow.
+                workflow_dn: str # Set to the DN of a workflow to use, or None to not use a workflow.
             }
         Note: This API does not currently support adding service tags to entitlements.
     :return:
@@ -774,8 +751,6 @@ def _setup_policy_object(policy_type,
 
     # Iterate through the entitlements argument and add each one to the request
     for entitlement in entitlements:
-        keys = list(entitlement.keys())
-
         entitlement_object = policy_entitlement_type()
         service_target_object = service_target_type()
 
@@ -813,8 +788,8 @@ def _setup_policy_object(policy_type,
             else:
                 entitlement_object['type'] = 0
 
-        if entitlement['workflow'] is not None:
-            entitlement_object['processDN'] = str(entitlement['workflow'])
+        if entitlement['workflow_dn'] is not None:
+            entitlement_object['processDN'] = str(entitlement['workflow_dn'])
 
         if entitlement['ownership_type'] is not None:
             if entitlement['ownership_type'].lower() == 'all':
@@ -854,7 +829,7 @@ def _setup_policy_object(policy_type,
             membership_object['type'] = '4'
             membership_list.append(membership_object)
         elif membership_type == 'roles':
-            for role in membership_roles:
+            for role in membership_role_dns:
                 membership_object = policy_membership_type()
                 membership_object['name'] = str(role)
                 membership_object['type'] = '3'

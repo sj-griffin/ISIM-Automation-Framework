@@ -93,8 +93,8 @@ def apply(isim_application: ISIMApplication,
           name: str,
           role_classification: str,
           description: Optional[str] = None,
-          role_owner_names: Optional[List[str]] = None,
-          user_owner_names: Optional[List[str]] = None,
+          role_owners: Optional[List[tuple]] = None,
+          user_owners: Optional[List[tuple]] = None,
           enable_access: bool = None,
           common_access: bool = None,
           access_type: Optional[str] = None,
@@ -118,8 +118,10 @@ def apply(isim_application: ISIMApplication,
     :param name: The role name.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
-    :param role_owner_names: A list of role names for the roles that own this role.
-    :param user_owner_names: A list of uids for the users that own this role.
+    :param role_owners: A list of tuples containing the container path and role name for each of the roles that
+        own this role.
+    :param user_owners: A list of tuples containing the container path and uid for each of the users that own
+        this role.
     :param enable_access: Set to True to enable access for the role.
     :param common_access: Set to True to show the role as a common access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -149,11 +151,11 @@ def apply(isim_application: ISIMApplication,
     if description is None:
         description = ""
 
-    if role_owner_names is None:
-        role_owner_names = []
+    if role_owners is None:
+        role_owners = []
 
-    if user_owner_names is None:
-        user_owner_names = []
+    if user_owners is None:
+        user_owners = []
 
     if enable_access is None:
         enable_access = False
@@ -183,42 +185,26 @@ def apply(isim_application: ISIMApplication,
     dn_encoder = DNEncoder(isim_application)
     container_dn = dn_encoder.container_path_to_dn(container_path)
 
-    # Extract the organisation name from the container path.
-    organization = container_path.split('//')[1]
-
     # Convert the role and user owner names into DNs that can be passed to the SOAP API
     role_owner_dns = []
-    for role_owner_name in role_owner_names:
-        role_owner_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,
-                                                           name=str(role_owner_name),
+    for role_owner in role_owners:
+        role_owner_dns.append(dn_encoder.encode_to_isim_dn(container_path=str(role_owner[0]),
+                                                           name=str(role_owner[1]),
                                                            object_type='role'))
 
     user_owner_dns = []
-    for user_owner_name in user_owner_names:
-        user_owner_dns.append(dn_encoder.encode_to_isim_dn(organization=organization,
-                                                           name=str(user_owner_name),
+    for user_owner in user_owners:
+        user_owner_dns.append(dn_encoder.encode_to_isim_dn(container_path=str(user_owner[0]),
+                                                           name=str(user_owner[1]),
                                                            object_type='person'))
 
-    # Search for instances with the specified name in the specified container
-    search_response = search(
-        isim_application=isim_application,
-        container_dn=container_dn,
-        ldap_filter="(errolename=" + name + ")"
-    )
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if search_response['rc'] != 0:
-        return search_response
-    search_results = search_response['data']
+    # Resolve the instance with the specified name in the specified container
+    existing_role = dn_encoder.get_unique_object(container_path=container_path,
+                                                 name=name,
+                                                 object_type='role')
 
-    # Because the search function can return results with names containing the specified name, we need to confirm which
-    # results have the exact name that was searched for.
-    exact_matches = []
-    for result in search_results:
-        if result['name'] == name:
-            exact_matches.append(result)
-
-    if len(exact_matches) == 0 or force:
-        # If there are no results, create a new role and return the response
+    if existing_role is None or force:
+        # If the instance doesn't exist yet, create a new role and return the response
         if check_mode:
             return create_return_object(changed=True)
         else:
@@ -228,8 +214,8 @@ def apply(isim_application: ISIMApplication,
                 name=name,
                 role_classification=role_classification,
                 description=description,
-                role_owners=role_owner_dns,
-                user_owners=user_owner_dns,
+                role_owner_dns=role_owner_dns,
+                user_owner_dns=user_owner_dns,
                 enable_access=enable_access,
                 common_access=common_access,
                 access_type=access_type,
@@ -239,10 +225,9 @@ def apply(isim_application: ISIMApplication,
                 access_badges=access_badges,
                 assignment_attributes=assignment_attributes
             )
-    elif len(exact_matches) == 1:
-        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+    else:
+        # If an existing instance was found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_role = exact_matches[0]
         modify_required = False
 
         existing_role_classification = get_soap_attribute(existing_role, 'erroleclassification')
@@ -407,8 +392,8 @@ def apply(isim_application: ISIMApplication,
                     role_dn=existing_dn,
                     role_classification=role_classification,
                     description=description,
-                    role_owners=role_owner_dns,
-                    user_owners=user_owner_dns,
+                    role_owner_dns=role_owner_dns,
+                    user_owner_dns=user_owner_dns,
                     enable_access=enable_access,
                     common_access=common_access,
                     access_type=access_type,
@@ -421,20 +406,14 @@ def apply(isim_application: ISIMApplication,
         else:
             return create_return_object(changed=False)
 
-    else:
-        return create_return_object(changed=False, warnings=["More than one instance of the role '" + name + "' was "
-                                                             "found in container '" + container_dn + "'. No action "
-                                                             "was taken as it is unclear which role is being referred "
-                                                             "to."])
-
 
 def _create(isim_application: ISIMApplication,
             container_dn: str,
             name: str,
             role_classification: str,
             description: str = "",
-            role_owners: List[str] = [],
-            user_owners: List[str] = [],
+            role_owner_dns: List[str] = [],
+            user_owner_dns: List[str] = [],
             enable_access: bool = False,
             common_access: bool = False,
             access_type: str = "",
@@ -451,8 +430,8 @@ def _create(isim_application: ISIMApplication,
     :param name: The role name.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
-    :param role_owners: A list of DNs corresponding to the roles that own this role.
-    :param user_owners: A list of DNs corresponding to the users that own this role.
+    :param role_owner_dns: A list of DNs corresponding to the roles that own this role.
+    :param user_owner_dns: A list of DNs corresponding to the users that own this role.
     :param enable_access: Set to True to enable access for the role.
     :param common_access: Set to True to show the role as a common access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -508,8 +487,8 @@ def _create(isim_application: ISIMApplication,
         attr_type=attr_type,
         role_classification=role_classification,
         description=description,
-        role_owners=role_owners,
-        user_owners=user_owners,
+        role_owner_dns=role_owner_dns,
+        user_owner_dns=user_owner_dns,
         enable_access=enable_access,
         common_access=common_access,
         access_type=access_type,
@@ -536,8 +515,8 @@ def _modify(isim_application: ISIMApplication,
             role_dn: str,
             role_classification: Optional[str] = None,
             description: Optional[str] = None,
-            role_owners: Optional[List[str]] = None,
-            user_owners: Optional[List[str]] = None,
+            role_owner_dns: Optional[List[str]] = None,
+            user_owner_dns: Optional[List[str]] = None,
             enable_access: Optional[bool] = None,
             common_access: Optional[bool] = None,
             access_type: Optional[str] = None,
@@ -555,8 +534,8 @@ def _modify(isim_application: ISIMApplication,
     :param role_dn: The DN of the existing role to modify.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
-    :param role_owners: A list of DNs corresponding to the roles that own this role.
-    :param user_owners: A list of DNs corresponding to the users that own this role.
+    :param role_owner_dns: A list of DNs corresponding to the roles that own this role.
+    :param user_owner_dns: A list of DNs corresponding to the users that own this role.
     :param enable_access: Set to True to enable access for the role.
     :param common_access: Set to True to show the role as a common access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -587,8 +566,8 @@ def _modify(isim_application: ISIMApplication,
         attr_type=attr_type,
         role_classification=role_classification,
         description=description,
-        role_owners=role_owners,
-        user_owners=user_owners,
+        role_owner_dns=role_owner_dns,
+        user_owner_dns=user_owner_dns,
         enable_access=enable_access,
         common_access=common_access,
         access_type=access_type,
@@ -614,8 +593,8 @@ def _build_role_attributes_list(
         attr_type,
         role_classification: Optional[str] = None,
         description: Optional[str] = None,
-        role_owners: Optional[List[str]] = None,
-        user_owners: Optional[List[str]] = None,
+        role_owner_dns: Optional[List[str]] = None,
+        user_owner_dns: Optional[List[str]] = None,
         enable_access: Optional[bool] = None,
         common_access: Optional[bool] = None,
         access_type: Optional[str] = None,
@@ -632,8 +611,8 @@ def _build_role_attributes_list(
     :param attr_type: The SOAP type that can be used to instantiate an attribute object.
     :param role_classification: Set to either "application" or "business".
     :param description: A description of the role.
-    :param role_owners: A list of DNs corresponding to the roles that own this role.
-    :param user_owners: A list of DNs corresponding to the users that own this role.
+    :param role_owner_dns: A list of DNs corresponding to the roles that own this role.
+    :param user_owner_dns: A list of DNs corresponding to the users that own this role.
     :param enable_access: Set to True to enable access for the role.
     :param common_access: Set to True to show the role as a common access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -666,12 +645,12 @@ def _build_role_attributes_list(
             raise ValueError(role_classification + "is not a valid role classification. Must be 'application' or "
                                                    "'business'.")
 
-    if role_owners is not None and user_owners is not None:
-        attribute_list.append(build_attribute(attr_type, 'owner', role_owners + user_owners))
-    elif role_owners is not None:
-        attribute_list.append(build_attribute(attr_type, 'owner', role_owners))
-    elif user_owners is not None:
-        attribute_list.append(build_attribute(attr_type, 'owner', user_owners))
+    if role_owner_dns is not None and user_owner_dns is not None:
+        attribute_list.append(build_attribute(attr_type, 'owner', role_owner_dns + user_owner_dns))
+    elif role_owner_dns is not None:
+        attribute_list.append(build_attribute(attr_type, 'owner', role_owner_dns))
+    elif user_owner_dns is not None:
+        attribute_list.append(build_attribute(attr_type, 'owner', user_owner_dns))
 
     if enable_access is not None:
         if enable_access is False:

@@ -142,8 +142,9 @@ class ISIMApplication:
     clients: Dict
     soap_session: object
     version: str
+    root_dn: str
 
-    def __init__(self, hostname: str, user: ISIMApplicationUser, port: int = 9082):
+    def __init__(self, hostname: str, root_dn: str, user: ISIMApplicationUser, port: int = 9082):
         self.logger = logging.getLogger(__name__)
         self.logger.debug('Creating an ISIMApplication')
         if isinstance(port, str):
@@ -152,6 +153,7 @@ class ISIMApplication:
             self.port = port
         self.host = hostname
         self.user = user
+        self.root_dn = root_dn
 
         # Disable SSL validation
         session = Session()

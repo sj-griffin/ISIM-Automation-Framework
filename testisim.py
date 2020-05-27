@@ -82,48 +82,70 @@ if __name__ == "__main__":
     # Create a user credential for ISIM application
     u = ISIMApplicationUser(username="itim manager", password="Object00")
     # Create an ISIM application with above credential
-    isim_server = ISIMApplication(hostname="192.168.1.56", user=u, port=9082)
+    isim_server = ISIMApplication(hostname="192.168.1.56", root_dn="ou=demo,dc=com", user=u, port=9082)
 
-    # dn_encoder = DNEncoder(isim_server)
-    #
-    # # Convert a path to a DN
+    dn_encoder = DNEncoder(isim_server)
+
+    # Convert a path to a DN
     # print("Converting a path to a DN...")
     # pretty_print(dn_encoder.container_path_to_dn('//demo//lo::Sydney//ou::ou1//bp::testing'))
     # pretty_print(dn_encoder.container_path_to_dn('//IBM'))
+    # pretty_print(dn_encoder.container_path_to_dn('//'))
+    #
+    # # Convert a DN to a path
+    # print("Converting a DN to a path...")
+    # pretty_print(dn_encoder.dn_to_container_path('erglobalid=3955740627586799273,ou=orgChart,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.dn_to_container_path('erglobalid=2668832026328970745,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.dn_to_container_path('ou=demo,dc=com'))
 
     #
     # # Decode a DN
     # print("Decoding a DN...")
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=3882214986171532768,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=DOESNTEXIST,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    #
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=00000000000000000050,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=DOESNTEXIST,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    #
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=8625498261252005197,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=DOESNTEXIST,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    #
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=4352532358240739134,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com'))
+    # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=DOESNTEXIST,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com'))
+
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=4740767743419216325,ou=0,ou=people,erglobalid=2668832026328970745,ou=demo,dc=com'))
     # pretty_print(dn_encoder.decode_from_isim_dn('erglobalid=00000000000000000007,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com'))
-    #
+
     # # Encode a DN
     # print("Encoding a DN...")
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='demo', name='new-role', object_type='role'))
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='demo', name='Default Account Request Workflow', object_type='workflow'))
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='demo', name='pim-test-service', object_type='service'))
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='demo', name='bjones', object_type='person'))
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='IBM', name='ayang', object_type='person'))
-    # pretty_print(dn_encoder.encode_to_isim_dn(organization='demo', name='itimadmin', object_type='person'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo', name='new-role', object_type='role'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo', name='DOESNT EXIST', object_type='role'))
+    #
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ad::ggg', name='sublevel workflow', object_type='workflow'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ad::ggg', name='DOESNT EXIST', object_type='workflow'))
+    #
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1//bp::testing', name='ad-test-service', object_type='service'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1//bp::testing', name='DOESNT EXIST', object_type='service'))
+    #
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1', name='bjones', object_type='person'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1', name='DOESNT EXIST', object_type='person'))
+    #
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//IBM', name='ayang', object_type='person'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo', name='itimadmin', object_type='person'))
+    #
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1//bp::testing', name='Provisioning policy test 1', object_type='provisioningpolicy'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1//bp::testing', name='DOESNT EXIST', object_type='provisioningpolicy'))
 
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1//bp::testing', name='ad::123', object_type='container'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney//ou::ou1', name='bp::testing', object_type='container'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo//lo::Sydney', name='ou::ou1', object_type='container'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//demo', name='lo::Sydney', object_type='container'))
+    # pretty_print(dn_encoder.encode_to_isim_dn(container_path='//', name='o::IBM', object_type='container'))
 
     # # Get a list of organizations
     # print("Getting organizations...")
     # pretty_print(isimws.isim.organization.get_all(
     #     isim_application=isim_server
-    # ))
-
-    # # Search for a container
-    # print("Searching for a container...")
-    # pretty_print(isimws.isim.container.search(
-    #     isim_application=isim_server,
-    #     parent_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #     container_name="testou",
-    #     profile="organizationalunit"
     # ))
 
     # Search for a provisioning policy
@@ -134,76 +156,81 @@ if __name__ == "__main__":
     #     policy_name="test"
     # ))
     #
-    # Idempotently apply a provisioning policy configuration
-    print("Applying a provisioning policy configuration...")
-    pretty_print(isimws.isim.provisioningpolicy.apply(
-        isim_application=isim_server,
-        container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
-        name="Provisioning policy test 1",
-        priority=50,
-        description="Here's a description",
-        keywords="here are some keywords",
-        caption="Here's a caption",
-        available_to_subunits=False,
-        enabled=True,
-        membership_type="roles",
-        membership_role_names=['new-role'],
-        entitlements=[
-            {
-                'automatic': False,
-                'ownership_type': 'all',
-                'target_type': 'specific',
-                'service_type': None,
-                'service_name': 'ITIM Service',
-                'workflow_name': 'Default Account Request Workflow'
-            }
-        ],
-        check_mode=False,
-        force=False
-    ))
-
-    pretty_print(isimws.isim.provisioningpolicy.apply(
-        isim_application=isim_server,
-        container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
-        name="PP apply test",
-        priority=50,
-        description="Here's a description",
-        keywords="here are some keywords",
-        caption="Here's a caption",
-        available_to_subunits=False,
-        enabled=True,
-        membership_type="roles",
-        membership_role_names=['new-role',
-                               'Demo Role'],
-        entitlements=[
-            {
-                'automatic': False,
-                'ownership_type': 'all',
-                'target_type': 'all',
-                'service_type': None,
-                'service_name': None,
-                'workflow_name': None
-            },
-            {
-                'automatic': True,
-                'ownership_type': 'device',
-                'target_type': 'policy',
-                'service_type': 'ADprofile',
-                'service_name': None,
-                'workflow_name': 'Default Account Request Workflow'
-            },
-            {
-                'automatic': False,
-                'ownership_type': 'individual',
-                'target_type': 'specific',
-                'service_type': None,
-                'service_name': 'ITIM Service',
-                'workflow_name': 'Default Account Request Workflow'
-            }
-        ],
-        check_mode=False,
-        force=False
-    ))
+    # # Idempotently apply a provisioning policy configuration
+    # print("Applying a provisioning policy configuration...")
+    # pretty_print(isimws.isim.provisioningpolicy.apply(
+    #     isim_application=isim_server,
+    #     container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
+    #     name="Provisioning policy test 999",
+    #     priority=50,
+    #     description="Here's a description.",
+    #     keywords="here are some keywords",
+    #     caption="Here's a caption",
+    #     available_to_subunits=False,
+    #     enabled=True,
+    #     membership_type="roles",
+    #     membership_roles=[
+    #         ('//demo', 'new-role'),
+    #         ('//demo//lo::Sydney//ou::ou1//bp::testing', 'Applied Role 88')
+    #     ],
+    #     entitlements=[
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'all',
+    #             'target_type': 'specific',
+    #             'service_type': None,
+    #             'service': ('//demo', 'ITIM Service'),
+    #             'workflow': ('//demo', 'Default Account Request Workflow')
+    #         }
+    #     ],
+    #     check_mode=False,
+    #     force=False
+    # ))
+    #
+    # pretty_print(isimws.isim.provisioningpolicy.apply(
+    #     isim_application=isim_server,
+    #     container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
+    #     name="PP apply test 999",
+    #     priority=50,
+    #     description="Here's a description.",
+    #     keywords="here are some keywords",
+    #     caption="Here's a caption",
+    #     available_to_subunits=False,
+    #     enabled=True,
+    #     membership_type="roles",
+    #     membership_roles=[
+    #         ('//demo', 'new-role'),
+    #         ('//demo', 'Demo Role')
+    #     ],
+    #     entitlements=[
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'all',
+    #             'target_type': 'all',
+    #             'service_type': None,
+    #             'service': None,
+    #             'workflow': None
+    #         },
+    #         {
+    #             'automatic': True,
+    #             'ownership_type': 'device',
+    #             'target_type': 'policy',
+    #             'service_type': 'ADprofile',
+    #             'service': None,
+    #             'workflow': ('//demo', 'Default Account Request Workflow')
+    #         },
+    #         {
+    #             'automatic': False,
+    #             'ownership_type': 'individual',
+    #             'target_type': 'specific',
+    #             'service_type': None,
+    #             'service': ('//demo', 'ITIM Service'),
+    #             'workflow': ('//demo', 'Default Account Request Workflow')
+    #         }
+    #     ],
+    #     check_mode=False,
+    #     force=False
+    # ))
 
     # # Search for services
     # print("Searching for services...")
@@ -217,19 +244,19 @@ if __name__ == "__main__":
     # print("Getting a service...")
     # pretty_print(isimws.isim.service.get(
     #     isim_application=isim_server,
-    #     service_dn="erglobalid=5621731231346846233,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com"
+    #     service_dn="erglobalid=8416561955645170234,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com"
     # ))
     #
-    # # Idempotently apply an account service configuration
+    # Idempotently apply an account service configuration
     # print("Applying an account service configuration...")
     # pretty_print(isimws.isim.service.apply_account_service(
     #     isim_application=isim_server,
     #     container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
-    #     name="soap-test-service 7",
+    #     name="soap-test-service 105",
     #     service_type="ADprofile",
     #     description="Here's a description",
-    #     owner_name="testuser",
-    #     service_prerequisite_name="ITIM Service",
+    #     owner=("//demo//lo::Sydney//ou::ou1", "bjones"),
+    #     service_prerequisite=("//demo", "ITIM Service"),
     #     define_access=True,
     #     access_name="Test access",
     #     access_type="role",
@@ -251,13 +278,13 @@ if __name__ == "__main__":
     #     check_mode=False,
     #     force=False
     # ))
-    # #
+    #
     # # Idempotently apply an identity feed configuration
     # print("Applying an identity feed configuration...")
     # pretty_print(isimws.isim.service.apply_identity_feed(
     #     isim_application=isim_server,
     #     container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
-    #     name="soap-test-feed 6",
+    #     name="soap-test-feed 105",
     #     service_type="ADFeed",
     #     description="Here's a description",
     #     use_workflow=True,
@@ -281,13 +308,15 @@ if __name__ == "__main__":
     # pretty_print(isimws.isim.role.apply(
     #     isim_application=isim_server,
     #     container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
-    #     name='Applied Role 78',
+    #     name='Applied Role 181',
     #     role_classification='business',
     #     description='A role to test the SOAP API.',
-    #     role_owner_names=[
-    #         "new-role"],
-    #     user_owner_names=[
-    #         "testuser"],
+    #     role_owners=[
+    #         ("//demo", "new-role")
+    #     ],
+    #     user_owners=[
+    #         ("//demo//lo::Sydney//ou::ou1", "bjones")
+    #     ],
     #     enable_access=True,
     #     common_access=True,
     #     access_type='emailgroup',
@@ -301,33 +330,167 @@ if __name__ == "__main__":
     #     force=False
     # ))
 
-    # Search for roles
+    # # Search for roles
     # print("Searching for roles...")
     # pretty_print(isimws.isim.role.search(
     #     isim_application=isim_server,
     #     container_dn=None,
-    #     ldap_filter="(errolename=test-role-2)"
+    #     ldap_filter="(errolename=new-role)"
     # ))
     #
     # # Get a role
     # print("Getting a role...")
     # pretty_print(isimws.isim.role.get(
     #     isim_application=isim_server,
-    #     role_dn="erglobalid=7148929463058980179,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"
+    #     role_dn="erglobalid=8395026297284492323,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com"
     # ))
 
     # # Get a container
     # print("Getting a container...")
     # pretty_print(isimws.isim.container.get(isim_application=isim_server, container_dn="erglobalid=00000000000000000000,ou=demo,dc=com"))
     #
-    # # Create a person
-    # print("Creating a person...")
-    # pretty_print(isimws.isim.person.create(isim_application=isim_server,
-    #                                        container_dn="erglobalid=00000000000000000000,ou=demo,dc=com",
-    #                                        profile_name="Person",
-    #                                        username="bbrow",
-    #                                        surname="Brow",
-    #                                        full_name="Boe Brow",
-    #                                        aliases=["Jim", "Jack"],
-    #                                        password="Object99",
-    #                                        roles=[]))
+
+    # # Search for people
+    # print("Searching for people...")
+    # pretty_print(isimws.isim.person.search(
+    #     isim_application=isim_server,
+    #     ldap_filter="(uid=cspeed)"
+    # ))
+    #
+    # # Idempotently apply a person configuration
+    # print("Applying a person configuration...")
+    # pretty_print(isimws.isim.person.apply(isim_application=isim_server,
+    #                                       container_path="//demo//lo::Sydney//ou::ou1//bp::testing",
+    #                                       uid="djohnson",
+    #                                       profile="Person",
+    #                                       full_name="Darl Johnson",
+    #                                       surname="Johnson",
+    #                                       aliases=["Darl", "DJ"],
+    #                                       password="Object99",
+    #                                       roles=[
+    #                                           ("//demo", "new-role"),
+    #                                           ("//demo//lo::Sydney//ou::ou1//bp::testing", "Applied Role 78")
+    #                                       ]))
+
+    # # Get a person
+    # print("Getting a person...")
+    # pretty_print(isimws.isim.person.get(
+    #     isim_application=isim_server,
+    #     person_dn="erglobalid=1502785756771677767,ou=0,ou=people,erglobalid=00000000000000000000,ou=demo,dc=com"
+    # ))
+    #
+    # Get a workflow
+    # print("Getting a workflow...")
+    # pretty_print(isimws.isim.workflow.get_attribute(
+    #     isim_application=isim_server,
+    #     workflow_dn="erglobalid=7338783908939776126,ou=workflow,erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     attribute_name="erprocessname"
+    # ))
+
+    # pretty_print(isimws.isim.workflow.search_attribute(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=1509441815409121811,ou=orgChart,erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     ldap_filter="(erprocessname=*)",
+    #     attribute_name="erglobalid"
+    # ))
+
+    # pretty_print(isimws.isim.workflow._get_attribute_by_filter(
+    #     isim_application=isim_server,
+    #     search_filter="(erparent=*)",
+    #     attribute_name="erglobalid"
+    # ))
+
+    # # Get a container
+    # print("Getting a container...")
+    # pretty_print(isimws.isim.container.get(
+    #     isim_application=isim_server,
+    #     container_dn="erglobalid=2420248246759289552,ou=orgChart,erglobalid=00000000000000000000,ou=demo,dc=com"
+    # ))
+    #
+    # print("Getting a container...")
+    # pretty_print(isimws.isim.container.get(
+    #     isim_application=isim_server,
+    #     container_dn="ou=demo,dc=com"
+    # ))
+
+    # pretty_print(isimws.isim.container.get(isim_application=isim_server, container_dn="erglobalid=1510274102677986934,ou=orgChart,erglobalid=00000000000000000000,ou=demo,dc=com"))
+
+    # Search for a container
+    # print("Searching for a container...")
+    # pretty_print(isimws.isim.container.search(
+    #     isim_application=isim_server,
+    #     parent_dn="erglobalid=2395356699390379214,ou=orgChart,erglobalid=00000000000000000000,ou=demo,dc=com",
+    #     container_name="ad1",
+    #     profile="AdminDomain",
+    #     direct_children_only=True,
+    #     exact_name_only=True
+    # ))
+
+    # Idempotently apply a container configuration
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//",
+                                             profile="Organization",
+                                             name="org1",
+                                             description="here's a description",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed'),
+                                                 ('//demo//lo::Sydney//ou::ou1', 'bjones'),
+                                                 ('//IBM', 'ayang')
+                                             ]))
+
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//demo",
+                                             profile="OrganizationalUnit",
+                                             name="ou1",
+                                             description="here's a description",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed'),
+                                                 ('//demo//lo::Sydney//ou::ou1', 'bjones'),
+                                                 ('//IBM', 'ayang')
+                                             ]))
+
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//demo//ou::ou1",
+                                             profile="Location",
+                                             name="loc1",
+                                             description="here's a description",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed'),
+                                                 ('//demo//lo::Sydney//ou::ou1', 'bjones')
+                                             ]))
+
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//demo//ou::ou1//lo::loc1",
+                                             profile="AdminDomain",
+                                             name="ad1",
+                                             description="here's a description",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed'),
+                                                 ('//demo//lo::Sydney//ou::ou1', 'bjones')
+                                             ]))
+
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//demo//ou::ou1//lo::loc1//ad::ad1",
+                                             profile="BPOrganization",
+                                             name="bp1",
+                                             description="here's a description",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed'),
+                                                 ('//demo//lo::Sydney//ou::ou1', 'bjones')
+                                             ]))
+
+    # Modify a parent container after giving it a child
+    print("Applying a container configuration...")
+    pretty_print(isimws.isim.container.apply(isim_application=isim_server,
+                                             parent_container_path="//demo//ou::ou1//lo::loc1",
+                                             profile="AdminDomain",
+                                             name="ad1",
+                                             description="here's a description...",
+                                             associated_people=[
+                                                 ('//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed')
+                                             ]))

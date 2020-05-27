@@ -82,8 +82,8 @@ def apply_account_service(isim_application: ISIMApplication,
                           name: str,
                           service_type: str,
                           description: Optional[str] = None,
-                          owner_name: Optional[str] = None,
-                          service_prerequisite_name: Optional[str] = None,
+                          owner: Optional[tuple] = None,
+                          service_prerequisite: Optional[tuple] = None,
                           define_access: bool = None,
                           access_name: Optional[str] = None,
                           access_type: Optional[str] = None,
@@ -113,8 +113,9 @@ def apply_account_service(isim_application: ISIMApplication,
         Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
         'PosixLinuxProfile', 'PosixSolarisProfile', 'WinLocalProfile', or 'HostedService'.
     :param description: A description of the service.
-    :param owner_name: The uid of the user that owns the service.
-    :param service_prerequisite_name: The name of the service that is a prerequisite for this one.
+    :param owner: A tuple containing the container path and uid of the user that owns the service.
+    :param service_prerequisite: A tuple containing the container path and name of the service that is a prerequisite
+        for this one.
     :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -152,11 +153,11 @@ def apply_account_service(isim_application: ISIMApplication,
     if description is None:
         description = ""
 
-    if owner_name is None:
-        owner_name = ""
+    if owner is None:
+        owner = ""
 
-    if service_prerequisite_name is None:
-        service_prerequisite_name = ""
+    if service_prerequisite is None:
+        service_prerequisite = ""
 
     if define_access is None:
         define_access = False
@@ -197,44 +198,28 @@ def apply_account_service(isim_application: ISIMApplication,
     dn_encoder = DNEncoder(isim_application)
     container_dn = dn_encoder.container_path_to_dn(container_path)
 
-    # Extract the organisation name from the container path.
-    organization = container_path.split('//')[1]
-
     # Convert the owner name and service prerequisite name into DNs that can be passed to the SOAP API
-    if owner_name != "":
-        owner_dn = dn_encoder.encode_to_isim_dn(organization=organization,
-                                                name=str(owner_name),
+    if owner != "":
+        owner_dn = dn_encoder.encode_to_isim_dn(container_path=str(owner[0]),
+                                                name=str(owner[1]),
                                                 object_type='person')
     else:
         owner_dn = ""
 
-    if service_prerequisite_name != "":
-        service_prerequisite_dn = dn_encoder.encode_to_isim_dn(organization=organization,
-                                                               name=str(service_prerequisite_name),
+    if service_prerequisite != "":
+        service_prerequisite_dn = dn_encoder.encode_to_isim_dn(container_path=str(service_prerequisite[0]),
+                                                               name=str(service_prerequisite[1]),
                                                                object_type='service')
     else:
         service_prerequisite_dn = ""
 
-    # Search for instances with the specified name in the specified container
-    search_response = search(
-        isim_application=isim_application,
-        container_dn=container_dn,
-        ldap_filter="(erservicename=" + name + ")"
-    )
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if search_response['rc'] != 0:
-        return search_response
-    search_results = search_response['data']
+    # Resolve the instance with the specified name in the specified container
+    existing_service = dn_encoder.get_unique_object(container_path=container_path,
+                                                    name=name,
+                                                    object_type='service')
 
-    # Because the search function can return results with names containing the specified name, we need to confirm which
-    # results have the exact name that was searched for.
-    exact_matches = []
-    for result in search_results:
-        if result['name'] == name:
-            exact_matches.append(result)
-
-    if len(exact_matches) == 0 or force:
-        # If there are no results, create a new service and return the response
+    if existing_service is None or force:
+        # If the instance doesn't exist yet, create a new role and return the response
         if check_mode:
             return create_return_object(changed=True)
         else:
@@ -243,8 +228,8 @@ def apply_account_service(isim_application: ISIMApplication,
                                            name=name,
                                            service_type=service_type,
                                            description=description,
-                                           owner=owner_dn,
-                                           service_prerequisite=service_prerequisite_dn,
+                                           owner_dn=owner_dn,
+                                           service_prerequisite_dn=service_prerequisite_dn,
                                            define_access=define_access,
                                            access_name=access_name,
                                            access_type=access_type,
@@ -255,10 +240,9 @@ def apply_account_service(isim_application: ISIMApplication,
                                            access_badges=access_badges,
                                            configuration=configuration)
 
-    elif len(exact_matches) == 1:
-        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+    else:
+        # If an existing instance was found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_service = exact_matches[0]
         modify_required = False
 
         existing_service_type = existing_service['profileName']
@@ -286,7 +270,7 @@ def apply_account_service(isim_application: ISIMApplication,
             if owner_dn != '':
                 modify_required = True
             else:
-                owner = None  # set to None so that no change occurs
+                owner_dn = None  # set to None so that no change occurs
         elif owner_dn != existing_owner[0]:
             modify_required = True
         else:
@@ -297,7 +281,7 @@ def apply_account_service(isim_application: ISIMApplication,
             if service_prerequisite_dn != '':
                 modify_required = True
             else:
-                service_prerequisite = None  # set to None so that no change occurs
+                service_prerequisite_dn = None  # set to None so that no change occurs
         elif service_prerequisite_dn != existing_service_prerequisite[0]:
             modify_required = True
         else:
@@ -487,8 +471,8 @@ def apply_account_service(isim_application: ISIMApplication,
                     isim_application=isim_application,
                     service_dn=existing_dn,
                     description=description,
-                    owner=owner_dn,
-                    service_prerequisite=service_prerequisite_dn,
+                    owner_dn=owner_dn,
+                    service_prerequisite_dn=service_prerequisite_dn,
                     define_access=define_access,
                     access_name=access_name,
                     access_type=access_type,
@@ -501,12 +485,6 @@ def apply_account_service(isim_application: ISIMApplication,
                 )
         else:
             return create_return_object(changed=False)
-
-    else:
-        return create_return_object(changed=False, warnings=["More than one instance of the service '" + name + "' was "
-                                                             "found in container '" + container_dn + "'. No action "
-                                                             "was taken as it is unclear which service is being "
-                                                             "referred to."])
 
 
 def apply_identity_feed(isim_application: ISIMApplication,
@@ -597,26 +575,13 @@ def apply_identity_feed(isim_application: ISIMApplication,
         for index in range(0, len(configuration['ernamingcontexts'])):
             configuration['ernamingcontexts'][index] = dn_encoder.container_path_to_dn(configuration['ernamingcontexts'][index])
 
-    # Search for instances with the specified name in the specified container
-    search_response = search(
-        isim_application=isim_application,
-        container_dn=container_dn,
-        ldap_filter="(erservicename=" + name + ")"
-    )
-    # If an error was encountered and ignored, return the IBMResponse object so that Ansible can process it
-    if search_response['rc'] != 0:
-        return search_response
-    search_results = search_response['data']
+    # Resolve the instance with the specified name in the specified container
+    existing_service = dn_encoder.get_unique_object(container_path=container_path,
+                                                    name=name,
+                                                    object_type='service')
 
-    # Because the search function can return results with names containing the specified name, we need to confirm which
-    # results have the exact name that was searched for.
-    exact_matches = []
-    for result in search_results:
-        if result['name'] == name:
-            exact_matches.append(result)
-
-    if len(exact_matches) == 0 or force:
-        # If there are no results, create a new feed and return the response
+    if existing_service is None or force:
+        # If the instance doesn't exist yet, create a new role and return the response
         if check_mode:
             return create_return_object(changed=True)
         else:
@@ -630,10 +595,9 @@ def apply_identity_feed(isim_application: ISIMApplication,
                                          placement_rule=placement_rule,
                                          configuration=configuration)
 
-    elif len(exact_matches) == 1:
-        # If exactly one result is found, compare it's attributes with the requested attributes and determine if a
+    else:
+        # If an existing instance was found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
-        existing_service = exact_matches[0]
         modify_required = False
 
         existing_service_type = existing_service['profileName']
@@ -756,20 +720,14 @@ def apply_identity_feed(isim_application: ISIMApplication,
         else:
             return create_return_object(changed=False)
 
-    else:
-        return create_return_object(changed=False, warnings=["More than one instance of the service '" + name + "' was "
-                                                             "found in container '" + container_dn + "'. No action "
-                                                             "was taken as it is unclear which service is being "
-                                                             "referred to."])
-
 
 def _create_account_service(isim_application: ISIMApplication,
                             container_dn: str,
                             name: str,
                             service_type: str,
                             description: str = "",
-                            owner: str = "",
-                            service_prerequisite: str = "",
+                            owner_dn: str = "",
+                            service_prerequisite_dn: str = "",
                             define_access: bool = False,
                             access_name: str = "",
                             access_type: str = "",
@@ -789,8 +747,8 @@ def _create_account_service(isim_application: ISIMApplication,
         Valid types out-of-the-box are 'ADprofile', 'LdapProfile', 'PIMProfile', 'PosixAixProfile', 'PosixHpuxProfile',
         'PosixLinuxProfile', 'PosixSolarisProfile', 'WinLocalProfile', or 'HostedService'.
     :param description: A description of the service.
-    :param owner: A DN corresponding to the user that owns the service.
-    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param owner_dn: A DN corresponding to the user that owns the service.
+    :param service_prerequisite_dn: A DN corresponding to a service that is a prerequisite for this one.
     :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -825,8 +783,8 @@ def _create_account_service(isim_application: ISIMApplication,
     attribute_list = _build_service_attributes_list(attr_type,
                                                     name=name,
                                                     description=description,
-                                                    owner=owner,
-                                                    service_prerequisite=service_prerequisite,
+                                                    owner_dn=owner_dn,
+                                                    service_prerequisite_dn=service_prerequisite_dn,
                                                     define_access=define_access,
                                                     access_name=access_name,
                                                     access_type=access_type,
@@ -854,8 +812,8 @@ def _create_account_service(isim_application: ISIMApplication,
 def _modify_account_service(isim_application: ISIMApplication,
                             service_dn: str,
                             description: Optional[str] = None,
-                            owner: Optional[str] = None,
-                            service_prerequisite: Optional[str] = None,
+                            owner_dn: Optional[str] = None,
+                            service_prerequisite_dn: Optional[str] = None,
                             define_access: Optional[bool] = None,
                             access_name: Optional[str] = None,
                             access_type: Optional[str] = None,
@@ -872,8 +830,8 @@ def _modify_account_service(isim_application: ISIMApplication,
     :param isim_application: The ISIMApplication instance to connect to.
     :param service_dn: The DN of the existing account service to modify.
     :param description: A description of the service.
-    :param owner: A DN corresponding to the user that owns the service.
-    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param owner_dn: A DN corresponding to the user that owns the service.
+    :param service_prerequisite_dn: A DN corresponding to a service that is a prerequisite for this one.
     :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -905,8 +863,8 @@ def _modify_account_service(isim_application: ISIMApplication,
     attribute_list = _build_service_attributes_list(attr_type,
                                                     name=None,
                                                     description=description,
-                                                    owner=owner,
-                                                    service_prerequisite=service_prerequisite,
+                                                    owner_dn=owner_dn,
+                                                    service_prerequisite_dn=service_prerequisite_dn,
                                                     define_access=define_access,
                                                     access_name=access_name,
                                                     access_type=access_type,
@@ -979,8 +937,8 @@ def _create_identity_feed(isim_application: ISIMApplication,
     attribute_list = _build_service_attributes_list(attr_type,
                                                     name=name,
                                                     description=description,
-                                                    owner=None,
-                                                    service_prerequisite=None,
+                                                    owner_dn=None,
+                                                    service_prerequisite_dn=None,
                                                     define_access=None,
                                                     access_name=None,
                                                     access_type=None,
@@ -1043,8 +1001,8 @@ def _modify_identity_feed(isim_application: ISIMApplication,
     attribute_list = _build_service_attributes_list(attr_type,
                                                     name=None,
                                                     description=description,
-                                                    owner=None,
-                                                    service_prerequisite=None,
+                                                    owner_dn=None,
+                                                    service_prerequisite_dn=None,
                                                     define_access=None,
                                                     access_name=None,
                                                     access_type=None,
@@ -1072,8 +1030,8 @@ def _modify_identity_feed(isim_application: ISIMApplication,
 def _build_service_attributes_list(attr_type,
                                    name: Optional[str] = None,
                                    description: Optional[str] = None,
-                                   owner: Optional[str] = None,
-                                   service_prerequisite: Optional[str] = None,
+                                   owner_dn: Optional[str] = None,
+                                   service_prerequisite_dn: Optional[str] = None,
                                    define_access: Optional[bool] = None,
                                    access_name: Optional[str] = None,
                                    access_type: Optional[str] = None,
@@ -1094,8 +1052,8 @@ def _build_service_attributes_list(attr_type,
     :param attr_type: The SOAP type that can be used to instantiate the an attribute object.
     :param name: The service name.
     :param description: A description of the service.
-    :param owner: A DN corresponding to the user that owns the service.
-    :param service_prerequisite: A DN corresponding to a service that is a prerequisite for this one.
+    :param owner_dn: A DN corresponding to the user that owns the service.
+    :param service_prerequisite_dn: A DN corresponding to a service that is a prerequisite for this one.
     :param define_access: Set to True to define an access for the service.
     :param access_name: A name for the access.
     :param access_type: Set to one of 'application', 'emailgroup', 'sharedfolder' or 'role'.
@@ -1140,17 +1098,17 @@ def _build_service_attributes_list(attr_type,
                         attribute_list.append(build_attribute(attr_type, key, [configuration[key]]))
 
     # Setup the attributes for an account service
-    if owner is not None:
-        if owner == '':
+    if owner_dn is not None:
+        if owner_dn == '':
             attribute_list.append(build_attribute(attr_type, 'owner', []))
         else:
-            attribute_list.append(build_attribute(attr_type, 'owner', [owner]))
+            attribute_list.append(build_attribute(attr_type, 'owner', [owner_dn]))
 
-    if service_prerequisite is not None:
-        if service_prerequisite == '':
+    if service_prerequisite_dn is not None:
+        if service_prerequisite_dn == '':
             attribute_list.append(build_attribute(attr_type, 'erprerequisite', []))
         else:
-            attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite]))
+            attribute_list.append(build_attribute(attr_type, 'erprerequisite', [service_prerequisite_dn]))
 
     if define_access is not None:
         # eraccessoption must be set to 2 to enable access, or empty to disable it
