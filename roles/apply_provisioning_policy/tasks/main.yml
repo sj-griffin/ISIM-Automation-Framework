@@ -1,0 +1,29 @@
+- name: Create or modify a provisioning policy - {{ apply_provisioning_policy_name }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.provisioningpolicy.apply
+    isimapi:
+      container_path:                 "{{ apply_provisioning_policy_container_path }}"
+      name:                           "{{ apply_provisioning_policy_name }}"
+      priority:                       "{{ apply_provisioning_policy_priority }}"
+      description:                    "{{ apply_provisioning_policy_description }}"
+      keywords:                       "{{ apply_provisioning_policy_keywords }}"
+      caption:                        "{{ apply_provisioning_policy_caption }}"
+      available_to_subunits:          "{{ apply_provisioning_policy_available_to_subunits }}"
+      enabled:                        "{{ apply_provisioning_policy_enabled }}"
+      membership_type:                "{{ apply_provisioning_policy_membership_type }}"
+      membership_roles:               "{{ apply_provisioning_policy_membership_roles }}"
+      entitlements:                   "{{ apply_provisioning_policy_entitlements }}"
+
+  when:
+    - apply_provisioning_policy_container_path is defined
+    - apply_provisioning_policy_name is defined
+    - apply_provisioning_policy_priority is defined
+    - apply_provisioning_policy_membership_type is defined
+    - apply_provisioning_policy_entitlements is defined

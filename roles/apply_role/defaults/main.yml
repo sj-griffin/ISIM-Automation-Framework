@@ -1,0 +1,18 @@
+# The following need to be provided for this role to succeed
+# apply_role_container_path:
+# apply_role_name:
+# apply_role_role_classification:
+
+
+# Provide these options values
+apply_role_description: null
+apply_role_role_owners: null
+apply_role_user_owners: null
+apply_role_enable_access: null
+apply_role_common_access: null
+apply_role_access_type: null
+apply_role_access_image_uri: null
+apply_role_access_search_terms: null
+apply_role_access_additional_info: null
+apply_role_access_badges: null
+apply_role_assignment_attributes: null

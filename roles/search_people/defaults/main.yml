@@ -1,0 +1,5 @@
+# The following need to be provided for this role to succeed
+# None
+
+# Provide these options values
+search_people_ldap_filter: null

@@ -1,0 +1,12 @@
+# The following need to be provided for this role to succeed
+# apply_person_container_path:
+# apply_person_uid:
+# apply_person_profile:
+# apply_person_full_name:
+# apply_person_surname:
+
+
+# Provide these options values
+apply_person_aliases: null
+apply_person_password: null
+apply_person_roles: null

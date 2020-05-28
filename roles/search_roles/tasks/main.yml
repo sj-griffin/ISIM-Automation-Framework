@@ -1,0 +1,14 @@
+- name: Search for roles - {{ search_roles_ldap_filter }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.role.search
+    isimapi:
+      container_dn:                   "{{ search_roles_container_dn }}"
+      ldap_filter:                    "{{ search_roles_ldap_filter }}"
+

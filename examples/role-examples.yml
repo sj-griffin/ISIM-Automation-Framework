@@ -1,0 +1,36 @@
+---
+- hosts: all
+  connection: local
+  roles:
+     - role: search_roles
+       search_roles_container_dn: 'erglobalid=00000000000000000000,ou=demo,dc=com'
+       search_roles_ldap_filter: '(errolename=*)'
+       
+     - role: get_role
+       get_role_role_dn: 'erglobalid=1994628074728458480,ou=roles,erglobalid=00000000000000000000,ou=demo,dc=com'
+
+     - role: apply_role
+       apply_role_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+       apply_role_name: 'ansible-test-role'
+       apply_role_role_classification: 'application'
+       apply_role_description: 'A role to test the SOAP API.'
+       apply_role_role_owners:
+            - ["//demo", "new-role"]
+       apply_role_user_owners:
+            - ["//demo", "testuser"]
+       apply_role_enable_access: True
+       apply_role_common_access: False
+       apply_role_access_type: 'emailgroup'
+       apply_role_access_image_uri: "/test"
+       apply_role_access_search_terms:
+            - 'test'
+            - 'testing'
+       apply_role_access_additional_info: 'Some additional information'
+       apply_role_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+       apply_role_assignment_attributes:
+            - 'attribute1'
+            - 'attribute2'

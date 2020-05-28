@@ -1,0 +1,31 @@
+- name: Create or modify an account service - {{ apply_account_service_name }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.service.apply_account_service
+    isimapi:
+      container_path:                 "{{ apply_account_service_container_path }}"
+      name:                           "{{ apply_account_service_name }}"
+      service_type:                   "{{ apply_account_service_service_type }}"
+      description:                    "{{ apply_account_service_description }}"
+      owner:                          "{{ apply_account_service_owner }}"
+      service_prerequisite:           "{{ apply_account_service_service_prerequisite }}"
+      define_access:                  "{{ apply_account_service_define_access }}"
+      access_name:                    "{{ apply_account_service_access_name }}"
+      access_type:                    "{{ apply_account_service_access_type }}"
+      access_description:             "{{ apply_account_service_access_description }}"
+      access_image_uri:               "{{ apply_account_service_access_image_uri }}"
+      access_search_terms:            "{{ apply_account_service_access_search_terms }}"
+      access_additional_info:         "{{ apply_account_service_access_additional_info }}"
+      access_badges:                  "{{ apply_account_service_access_badges }}"
+      configuration:                  "{{ apply_account_service_configuration }}"
+  when:
+    - apply_account_service_container_path is defined
+    - apply_account_service_name is defined
+    - apply_account_service_service_type is defined
+    - apply_account_service_access_name is defined or not apply_account_service_define_access

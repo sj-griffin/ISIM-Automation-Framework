@@ -1,0 +1,14 @@
+- name: Retrieve information about a role - {{ get_role_role_dn }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.role.get
+    isimapi:
+      role_dn:                     "{{ get_role_role_dn }}"
+  when:
+    - get_role_role_dn is defined

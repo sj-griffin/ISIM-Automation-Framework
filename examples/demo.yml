@@ -1,0 +1,137 @@
+---
+- hosts: all
+  connection: local
+  roles:
+      # Idempotently apply an AD OrganizationalPerson identity feed configuration
+      - role: apply_identity_feed
+        apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+        apply_identity_feed_service_type: 'ADFeed'
+        apply_identity_feed_name: 'Demo AD Feed'
+        apply_identity_feed_description: "A feed to demo the SOAP API."
+        apply_identity_feed_use_workflow: True
+        apply_identity_feed_evaluate_sod: True
+        apply_identity_feed_placement_rule: 'insert placement rule here'
+        apply_identity_feed_configuration:
+            erURL: 'demo.demo' # Required
+            erUid: 'admin'
+            erPassword: 'Object00'
+            erNamingContexts: # Required
+                - '//demo//ad::Restricted'
+            erPersonProfileName: 'Person' # Valid options are 'Person' or 'BPPerson'.
+            erAttrMapFilename: '/test'
+            ernamingattribute: 'uid' # Required
+
+      # Idempotently apply a role configuration
+      - role: apply_role
+        apply_role_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+        apply_role_name: 'Demo Role'
+        apply_role_role_classification: 'application'
+        apply_role_description: 'A role to demo the SOAP API.'
+        apply_role_role_owner_names:
+            - 'new-role'
+        apply_role_user_owner_names:
+            - 'testuser'
+        apply_role_enable_access: True
+        apply_role_common_access: False
+        apply_role_access_type: 'emailgroup'
+        apply_role_access_image_uri: "/test"
+        apply_role_access_search_terms:
+            - 'test'
+            - 'testing'
+        apply_role_access_additional_info: 'Some additional information'
+        apply_role_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+        apply_role_assignment_attributes:
+            - 'attribute1'
+            - 'attribute2'
+
+      # Idempotently apply an AD profile service configuration
+      - role: apply_account_service
+        apply_account_service_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+        apply_account_service_service_type: 'ADprofile'
+        apply_account_service_name: 'Demo AD Service'
+        apply_account_service_description: "A service to demo the SOAP API."
+        apply_account_service_owner_name: 'testuser'
+        apply_account_service_service_prerequisite_name: 'ITIM Service'
+        apply_account_service_define_access: True
+        apply_account_service_access_name: 'Test Access'
+        apply_account_service_access_type: 'emailgroup'
+        apply_account_service_access_description: 'A description of the access'
+        apply_account_service_access_image_uri: 'test.demo'
+        apply_account_service_access_search_terms:
+            - 'test'
+            - 'testing'
+        apply_account_service_access_additional_info: 'Some additional information'
+        apply_account_service_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+        apply_account_service_configuration:
+            erURL: 'demo.demo' # Required
+            erUid: 'admin' # Required
+            erPassword: 'Object00' # Required
+            erADBasePoint: 'abc'
+            erADGroupBasePoint: 'def'
+            erADDomainUser: 'ghi'
+            erADDomainPassword: 'jkl'
+            erURI: ['test1', 'test2']
+
+      # Idempotently apply a provisioning policy configuration with role-based membership and different types of entitlements
+      - role: apply_provisioning_policy
+        apply_provisioning_policy_container_path: "//demo//lo::Sydney//ou::ou1//bp::testing"
+        apply_provisioning_policy_name: "Demo Provisioning Policy"
+        apply_provisioning_policy_priority: 50
+        apply_provisioning_policy_description: "A provisioning policy to demo the SOAP API."
+        apply_provisioning_policy_keywords: "here are some keywords"
+        apply_provisioning_policy_caption: "Here's a caption"
+        apply_provisioning_policy_available_to_subunits: False
+        apply_provisioning_policy_enabled: True
+        apply_provisioning_policy_membership_type: "roles"
+        apply_provisioning_policy_membership_role_names:
+        - 'new-role'
+        - 'Demo Role'
+        apply_provisioning_policy_entitlements:
+        - automatic: False
+          ownership_type: 'all'
+          target_type: 'all'
+          service_type: null
+          service_name: null
+          workflow_name: null
+
+        - automatic: True
+          ownership_type: 'vendor'
+          target_type: 'type'
+          service_type: 'ADprofile'
+          service_name: null
+          workflow_name: 'Default Account Request Workflow'
+
+        - automatic: True
+          ownership_type: 'device'
+          target_type: 'policy'
+          service_type: 'ADprofile'
+          service_name: null
+          workflow_name: null
+
+        - automatic: False
+          ownership_type: 'individual'
+          target_type: 'specific'
+          service_type: null
+          service_name: 'ITIM Service'
+          workflow_name: 'Default Account Request Workflow'
+
+#      # Create a person
+#      - role: create_person
+#        create_person_container_dn: 'erglobalid=00000000000000000000,ou=demo,dc=com'
+#        create_person_profile_name: 'Person'
+#        create_person_username: 'demoperson'
+#        create_person_surname: 'Person'
+#        create_person_full_name: 'Demo Person'
+#        create_person_password: 'Object00'
+#        create_person_aliases:
+#            - 'demoperson1'
+#            - 'demoperson2'
+#        create_person_roles: []

@@ -1,0 +1,195 @@
+---
+- hosts: all
+  connection: local
+  roles:
+    - role: search_services
+      search_services_container_dn: 'erglobalid=00000000000000000000,ou=demo,dc=com'
+      search_services_ldap_filter: '(erservicename=*)'
+      
+    - role: get_service
+      get_service_service_dn: 'erglobalid=00000000000000000002,ou=services,erglobalid=00000000000000000000,ou=demo,dc=com'
+      
+    # Idempotently apply an AD profile service configuration
+    - role: apply_account_service
+      apply_account_service_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_account_service_service_type: 'ADprofile'
+      apply_account_service_name: 'ad-test-service'
+      apply_account_service_description: "Here's a description."
+      apply_account_service_owner: ['//demo', 'testuser']
+      apply_account_service_service_prerequisite: ['//demo', 'ITIM Service']
+      apply_account_service_define_access: True
+      apply_account_service_access_name: 'Test Access'
+      apply_account_service_access_type: 'emailgroup'
+      apply_account_service_access_description: 'A description of the access'
+      apply_account_service_access_image_uri: 'test.demo'
+      apply_account_service_access_search_terms:
+            - 'test'
+            - 'testing'
+      apply_account_service_access_additional_info: 'Some additional information'
+      apply_account_service_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+      apply_account_service_configuration:
+            erURL: 'demo.demo' # Required
+            erUid: 'admin' # Required
+            erPassword: 'Object00' # Required
+            erADBasePoint: 'abc'
+            erADGroupBasePoint: 'def'
+            erADDomainUser: 'ghi'
+            erADDomainPassword: 'jkl'
+            erURI: ['test1', 'test2']
+            
+    # Idempotently apply an LDAP profile service configuration
+    - role: apply_account_service
+      apply_account_service_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_account_service_service_type: 'LdapProfile'
+      apply_account_service_name: 'ldap-test-service'
+      apply_account_service_description: "Here's a description."
+      apply_account_service_owner: ['//demo', 'testuser']
+      apply_account_service_service_prerequisite: ['//demo', 'ITIM Service']
+      apply_account_service_define_access: True
+      apply_account_service_access_name: 'Test Access'
+      apply_account_service_access_type: 'application'
+      apply_account_service_access_description: 'A description of the access'
+      apply_account_service_access_image_uri: 'test.demo'
+      apply_account_service_access_search_terms:
+            - 'test'
+            - 'testing'
+      apply_account_service_access_additional_info: 'Some additional information'
+      apply_account_service_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+      apply_account_service_configuration:
+            erITDIurl: "rmi://localhost:1099/ITDIDispatcher"
+            erURL: "ldap://localhost:389" # Required
+            erLDAPUseSSL: False
+            erLdapPwdPolEnabled: True
+            erServiceUid: "abc" # Required
+            erPassword: "def" # Required
+            erDSName: "IDS" #  # Required. Valid options are 'IDS' (for IBM Directory Server), 'SUN_ONE' (for SunOne (iPlanet) Directory Server), or 'OTHER' (for tag.ldap.other)
+            erLdapPageSize: 200
+            eruserContainerDN: "dc=ibm,cn=users" # Required
+            erLdapUserRDN: "UID" # Required. Valid options are 'UID' or 'CN'
+            ergroupsContainerDN: "dc=ibm,cn=groups" # Required
+            erLdapGrpRDN: "cn" # Required. Valid options are 'cn'
+            erLdapInitialGrpMem: "cn=TIM Adapter" # Required
+            erLdapGroupClass: "groupOfNames" # Valid options are 'groupOfNames' or 'groupOfUniqueNames'
+            erLdapGrpMemAttr: "member" # Valid options are 'member' or 'uniqueMember'
+            erLdapALFileSystemPath: "/test/"
+            erLdapMaxConnectionCnt: 5
+            erLdapDisableALCache: True
+            
+    # Idempotently apply a PIM profile service configuration
+    - role: apply_account_service
+      apply_account_service_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_account_service_service_type: 'PIMProfile'
+      apply_account_service_name: 'pim-test-service'
+      apply_account_service_description: "Here's a description."
+      apply_account_service_owner: ['//demo', 'testuser']
+      apply_account_service_service_prerequisite: ['//demo', 'ITIM Service']
+      apply_account_service_define_access: True
+      apply_account_service_access_name: 'Test Access'
+      apply_account_service_access_type: 'application'
+      apply_account_service_access_description: 'A description of the access'
+      apply_account_service_access_image_uri: 'test.demo'
+      apply_account_service_access_search_terms:
+            - 'test'
+            - 'testing'
+      apply_account_service_access_additional_info: 'Some additional information'
+      apply_account_service_access_badges:
+            - text: 'An orange badge'
+              colour: 'orange'
+            - text: 'A red badge'
+              colour: 'red'
+      apply_account_service_configuration:
+            erURL: 'test.demo' # Required
+            erServiceUid: 'abc' # Required
+            erPassword: 'def' # Required
+
+            
+    # Idempotently apply an AD OrganizationalPerson identity feed configuration
+    - role: apply_identity_feed
+      apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_identity_feed_service_type: 'ADFeed'
+      apply_identity_feed_name: 'ad-test-feed'
+      apply_identity_feed_description: "Here's a description"
+      apply_identity_feed_use_workflow: True
+      apply_identity_feed_evaluate_sod: True
+      apply_identity_feed_placement_rule: 'insert placement rule here'
+      apply_identity_feed_configuration:
+            erURL: 'demo.demo' # Required
+            erUid: 'admin'
+            erPassword: 'Object00'
+            erNamingContexts: # Required
+                - '//demo//ad::Restricted'
+            erPersonProfileName: 'Person' # Valid options are 'Person' or 'BPPerson'.
+            erAttrMapFilename: '/test'
+            ernamingattribute: 'uid' # Required
+            
+    # Idempotently apply a CSV identity feed configuration
+    - role: apply_identity_feed
+      apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_identity_feed_service_type: 'CSVFeed'
+      apply_identity_feed_name: 'csv-test-feed'
+      apply_identity_feed_description: "Here's a description"
+      apply_identity_feed_use_workflow: True
+      apply_identity_feed_evaluate_sod: True
+      apply_identity_feed_placement_rule: 'insert placement rule here'
+      apply_identity_feed_configuration:
+            erCSVFileName: "./test.csv" # Required
+            erPersonProfileName: 'Person' # Valid options are 'Person' or 'BPPerson'.
+            ernamingattribute: 'uid' # Required. Valid options are 'uid', 'cn', 'employeeNumber', or 'mail'.
+            
+    # Idempotently apply an IDI data feed configuration
+    - role: apply_identity_feed
+      apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_identity_feed_service_type: 'DSML2Service'
+      apply_identity_feed_name: 'idi-test-feed'
+      apply_identity_feed_description: "Here's a description"
+      apply_identity_feed_use_workflow: True
+      apply_identity_feed_evaluate_sod: True
+      apply_identity_feed_placement_rule: 'insert placement rule here'
+      apply_identity_feed_configuration:
+            erURL: 'herp.derp' # Required
+            erUid: 'abc'
+            erPassword: 'def'
+            erNamingContexts: # Required
+                - '//demo//ad::Restricted'
+            ernamingattribute: 'uid'  # Required. Valid options are 'uid', 'cn', 'employeeNumber', or 'mail'.
+            
+    # Idempotently apply a DSML identity feed configuration
+    - role: apply_identity_feed
+      apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_identity_feed_service_type: 'DSMLInfo'
+      apply_identity_feed_name: 'dsml-test-feed'
+      apply_identity_feed_description: "Here's a description"
+      apply_identity_feed_use_workflow: True
+      apply_identity_feed_evaluate_sod: True
+      apply_identity_feed_placement_rule: 'insert placement rule here'
+      apply_identity_feed_configuration:
+            erUid: 'abc'
+            erPassword: 'def'
+            erDSMLFileName: '/test'
+
+    # Idempotently apply an iNetOrgPerson identity feed configuration
+    - role: apply_identity_feed
+      apply_identity_feed_container_path: '//demo//lo::Sydney//ou::ou1//bp::testing'
+      apply_identity_feed_service_type: 'RFC2798Feed'
+      apply_identity_feed_name: 'inetorgperson-test-feed'
+      apply_identity_feed_description: "Here's a description"
+      apply_identity_feed_use_workflow: True
+      apply_identity_feed_evaluate_sod: True
+      apply_identity_feed_placement_rule: 'insert placement rule here'
+      apply_identity_feed_configuration:
+            erURL: 'test.demo' # Required
+            erUid: 'abc'
+            erPassword: 'def'
+            erNamingContexts: # Required
+                - '//demo//ad::Restricted'
+            erPersonProfileName: 'Person' # Valid options are 'Person' or 'BPPerson'.
+            erAttrMapFilename: '/test'
+            ernamingattribute: 'uid'  # Required. Valid options are 'uid', 'cn', 'employeeNumber', or 'mail'.

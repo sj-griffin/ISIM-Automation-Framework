@@ -1,0 +1,92 @@
+---
+- hosts: all
+  connection: local
+  roles:
+    # Search for a provisioning policy
+    - role: search_provisioning_policies
+      search_provisioning_policies_container_dn: 'erglobalid=00000000000000000000,ou=demo,dc=com'
+      search_provisioning_policies_policy_name: 'Example Policy'
+
+    # Create a provisioning policy demonstrating membership for all users in the organization
+    - role: apply_provisioning_policy
+      apply_provisioning_policy_container_path: "//demo//lo::Sydney//ou::ou1//bp::testing"
+      apply_provisioning_policy_name: "Provisioning policy test 1"
+      apply_provisioning_policy_priority: 50
+      apply_provisioning_policy_description: "Here's a description"
+      apply_provisioning_policy_keywords: "here are some keywords"
+      apply_provisioning_policy_caption: "Here's a caption"
+      apply_provisioning_policy_available_to_subunits: False
+      apply_provisioning_policy_enabled: True
+      apply_provisioning_policy_membership_type: "all"
+      apply_provisioning_policy_membership_roles: []
+      apply_provisioning_policy_entitlements:
+        - automatic: False
+          ownership_type: 'all'
+          target_type: 'all'
+          service_type: null
+          service: null
+          workflow: null
+
+    # Create a provisioning policy demonstrating membership for all other users who are not granted to the 
+    # entitlement(s) defined by this provisioning policy via other policies
+    - role: apply_provisioning_policy
+      apply_provisioning_policy_container_path: "//demo//lo::Sydney//ou::ou1//bp::testing"
+      apply_provisioning_policy_name: "Provisioning policy test 2"
+      apply_provisioning_policy_priority: 50
+      apply_provisioning_policy_description: "Here's a description"
+      apply_provisioning_policy_keywords: "here are some keywords"
+      apply_provisioning_policy_caption: "Here's a caption"
+      apply_provisioning_policy_available_to_subunits: False
+      apply_provisioning_policy_enabled: True
+      apply_provisioning_policy_membership_type: "other"
+      apply_provisioning_policy_membership_roles: []
+      apply_provisioning_policy_entitlements:
+        - automatic: False
+          ownership_type: 'all'
+          target_type: 'all'
+          service_type: null
+          service: null
+          workflow: null
+
+    # Create a provisioning policy demonstrating role-based membership and different types of entitlements
+    - role: apply_provisioning_policy
+      apply_provisioning_policy_container_path: "//demo//lo::Sydney//ou::ou1//bp::testing"
+      apply_provisioning_policy_name: "Provisioning policy test 3"
+      apply_provisioning_policy_priority: 50
+      apply_provisioning_policy_description: "Here's a description"
+      apply_provisioning_policy_keywords: "here are some keywords"
+      apply_provisioning_policy_caption: "Here's a caption"
+      apply_provisioning_policy_available_to_subunits: False
+      apply_provisioning_policy_enabled: True
+      apply_provisioning_policy_membership_type: "roles"
+      apply_provisioning_policy_membership_roles:
+        - ['//demo', 'new-role']
+        - ['//demo', 'Demo Role']
+      apply_provisioning_policy_entitlements:
+        - automatic: False
+          ownership_type: 'all'
+          target_type: 'all'
+          service_type: null
+          service: null
+          workflow: null
+          
+        - automatic: True
+          ownership_type: 'vendor'
+          target_type: 'type'
+          service_type: 'ADprofile'
+          service: null
+          workflow: ['//demo', 'Default Account Request Workflow']
+          
+        - automatic: True
+          ownership_type: 'device'
+          target_type: 'policy'
+          service_type: 'ADprofile'
+          service: null
+          workflow: null
+          
+        - automatic: False
+          ownership_type: 'individual'
+          target_type: 'specific'
+          service_type: null
+          service: ['//demo', 'ITIM Service']
+          workflow: ['//demo', 'Default Account Request Workflow']

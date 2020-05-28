@@ -1,0 +1,14 @@
+# The following need to be provided for this role to succeed
+# apply_provisioning_policy_container_path:
+# apply_provisioning_policy_name:
+# apply_provisioning_policy_priority:
+# apply_provisioning_policy_membership_type
+# apply_provisioning_policy_entitlements:
+
+# Provide these options values
+apply_provisioning_policy_description: null
+apply_provisioning_policy_keywords: null
+apply_provisioning_policy_caption: null
+apply_provisioning_policy_available_to_subunits: null
+apply_provisioning_policy_enabled: null
+apply_provisioning_policy_membership_roles: null # required if apply_provisioning_policy_membership_type is 'roles'

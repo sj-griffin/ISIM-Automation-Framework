@@ -1,0 +1,17 @@
+- name: Search for provisioning policies - {{ search_provisioning_policies_policy_name }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.provisioningpolicy.search
+    isimapi:
+      container_dn:                   "{{ search_provisioning_policies_container_dn }}"
+      policy_name:                    "{{ search_provisioning_policies_policy_name }}"
+  when:
+    - search_provisioning_policies_container_dn is defined
+    - search_provisioning_policies_policy_name is defined
+

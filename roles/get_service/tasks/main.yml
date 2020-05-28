@@ -1,0 +1,14 @@
+- name: Retrieve information about a service - {{ get_service_service_dn }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.service.get
+    isimapi:
+      service_dn:                     "{{ get_service_service_dn }}"
+  when:
+    - get_service_service_dn is defined

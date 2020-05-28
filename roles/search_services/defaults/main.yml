@@ -1,0 +1,6 @@
+# The following need to be provided for this role to succeed
+# search_services_container_dn:
+
+# Provide these options values
+search_services_ldap_filter: null
+

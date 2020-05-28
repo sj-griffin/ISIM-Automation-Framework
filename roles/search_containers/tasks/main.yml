@@ -1,0 +1,14 @@
+- name: Search for containers - {{ search_containers_container_name }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.container.search
+    isimapi:
+      parent_dn:                    "{{ search_containers_parent_dn }}"
+      container_name:               "{{ search_containers_container_name }}"
+      profile:                      "{{ search_containers_profile }}"

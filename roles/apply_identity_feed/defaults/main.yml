@@ -1,0 +1,11 @@
+# The following need to be provided for this role to succeed
+# apply_identity_feed_container_path:
+# apply_identity_feed_name:
+# apply_identity_feed_service_type:
+
+# Provide these options values
+apply_identity_feed_description: null
+apply_identity_feed_use_workflow: null
+apply_identity_feed_evaluate_sod: null
+apply_identity_feed_placement_rule: null
+apply_identity_feed_configuration: {}

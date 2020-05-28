@@ -79,8 +79,8 @@ celerybeat-schedule
 .env
 
 # virtualenv
-venv/
-ENV/
+*/venv/
+*/ENV/
 
 # Spyder project settings
 .spyderproject
@@ -89,7 +89,7 @@ ENV/
 .ropeproject
 
 # Pycharm
-.idea
+*/.idea
 
 # DS
 .DS_Store

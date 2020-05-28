@@ -1,0 +1,24 @@
+# Set the Python interpreter path to use
+ansible_python_interpreter: /Library/Frameworks/Python.framework/Versions/3.6/bin/python3.6
+
+# Use local connection for making all calls
+connection: local
+ansible_connection: local
+
+# Ansible root path
+ansible_root_path: "{{ lookup('env','HOME') }}/Ansible"
+
+# Default LMI port for appliances
+app_port: 9082
+
+# root DN for the environment
+root_dn: "ou=demo,dc=com"
+
+# Logging set to maximum, output will not show until -vvv flag is used
+log_level: INFO
+
+# Idempotent functions are the default - no need to force any calls
+force: False
+
+# Default username to use for all roles/tasks (password inside host_vars)
+username: "itim manager"

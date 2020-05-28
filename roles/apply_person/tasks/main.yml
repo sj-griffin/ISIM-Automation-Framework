@@ -1,0 +1,25 @@
+- name: Create or modify a person - {{ apply_person_uid }}
+  isim:
+    hostname: "{{ inventory_hostname }}"
+    app_port:  "{{ app_port }}"
+    root_dn:   "{{ root_dn }}"
+    username:  "{{ username }}"
+    password:  "{{ password }}"
+    log:       "{{ log_level }}"
+    force:     "{{ force }}"
+    action: isimws.isim.person.apply
+    isimapi:
+      container_path:                 "{{ apply_person_container_path }}"
+      uid:                            "{{ apply_person_uid }}"
+      profile:                        "{{ apply_person_profile }}"
+      full_name:                      "{{ apply_person_full_name }}"
+      surname:                        "{{ apply_person_surname }}"
+      aliases:                        "{{ apply_person_aliases }}"
+      password:                       "{{ apply_person_password }}"
+      roles:                          "{{ apply_person_roles }}"
+  when:
+    - apply_person_container_path is defined
+    - apply_person_uid is defined
+    - apply_person_profile is defined
+    - apply_person_full_name is defined
+    - apply_person_surname is defined

@@ -1,0 +1,17 @@
+# The following need to be provided for this role to succeed
+# apply_account_service_container_path:
+# apply_account_service_name:
+# apply_account_service_service_type:
+
+# Provide these options values
+apply_account_service_description: null
+apply_account_service_owner: null
+apply_account_service_service_prerequisite: null
+apply_account_service_define_access: null
+apply_account_service_access_name: null  # required if apply_account_service_define_access is True
+apply_account_service_access_type: null
+apply_account_service_access_image_uri: null
+apply_account_service_access_search_terms: null
+apply_account_service_access_additional_info: null
+apply_account_service_access_badges: null
+apply_account_service_configuration: {}

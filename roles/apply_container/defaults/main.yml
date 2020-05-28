@@ -1,0 +1,9 @@
+# The following need to be provided for this role to succeed
+# apply_container_parent_container_path:
+# apply_container_profile:
+# apply_container_name:
+
+
+# Provide these options values
+apply_container_description: null
+apply_container_associated_people: null
