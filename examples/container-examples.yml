@@ -6,13 +6,43 @@
        search_containers_parent_dn: 'erglobalid=00000000000000000000,ou=demo,dc=com'
        search_containers_container_name: 'testou'
        search_containers_profile: 'OrganizationalUnit'
-       
+
      - role: apply_container
-       apply_container_parent_container_path: '//demo//lo::Sydney'
+         apply_container_parent_container_path: '//'
+         apply_container_profile: 'Organization'
+         apply_container_name: 'org1'
+         apply_container_description: 'A description'
+         apply_container_associated_people: []
+
+     - role: apply_container
+       apply_container_parent_container_path: '//org1'
        apply_container_profile: 'OrganizationalUnit'
        apply_container_name: 'ou1'
        apply_container_description: 'A description'
        apply_container_associated_people:
-            - ['//demo//lo::Sydney//ou::ou1//bp::testing', 'cspeed']
-            - ['//demo//lo::Sydney//ou::ou1', 'bjones']
-            - ['//IBM', 'ayang']
+            - ['//demo', 'cspeed']
+
+     - role: apply_container
+       apply_container_parent_container_path: '//org1//ou::ou1'
+       apply_container_profile: 'Location'
+       apply_container_name: 'loc1'
+       apply_container_description: 'A description'
+       apply_container_associated_people:
+            - ['//demo', 'cspeed']
+
+     - role: apply_container
+       apply_container_parent_container_path: '//org1//ou::ou1//lo::loc1'
+       apply_container_profile: 'AdminDomain'
+       apply_container_name: 'ad1'
+       apply_container_description: 'A description'
+       apply_container_associated_people:
+            - ['//demo', 'cspeed']
+            - ['//demo', 'bjones']
+
+     - role: apply_container
+       apply_container_parent_container_path: '//org1//ou::ou1//lo::loc1//ad::ad1'
+       apply_container_profile: 'BPOrganization'
+       apply_container_name: 'bp1'
+       apply_container_description: 'A description'
+       apply_container_associated_people:
+         - ['//demo', 'cspeed']

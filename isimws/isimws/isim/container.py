@@ -209,7 +209,7 @@ def apply(isim_application: ISIMApplication,
         if check_mode:
             return create_return_object(changed=True)
         else:
-            return _create(
+            ret_obj = _create(
                 isim_application=isim_application,
                 parent_container_dn=parent_container_dn,
                 profile=profile,
@@ -217,6 +217,7 @@ def apply(isim_application: ISIMApplication,
                 description=description,
                 associated_people_dns=associated_people_dns
             )
+            return strip_zeep_element_data(ret_obj)
     else:
         # If an existing instance was found, compare it's attributes with the requested attributes and determine if a
         # modify operation is required.
@@ -299,13 +300,14 @@ def apply(isim_application: ISIMApplication,
             else:
                 existing_dn = existing_container['itimDN']
 
-                return _modify(
+                ret_obj = _modify(
                     isim_application=isim_application,
                     container_dn=existing_dn,
                     profile=profile,
                     description=description,
                     associated_people_dns=associated_people_dns
                 )
+                return strip_zeep_element_data(ret_obj)
         else:
             return create_return_object(changed=False)
 

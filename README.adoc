@@ -95,20 +95,19 @@ $ pip3 install ./dist/isimws-XXXX.XX.XX.X-py3-none-any.whl
 ----
 
 [start=5]
-. Copy the contents of the roles directory into wherever you store Ansible roles. Ensure you update ansible.cfg to point to where your roles are stored. For example:
-
-----
-[defaults]
-roles_path = ~/isim-ansible/roles/
-----
-
-[start=6]
 . Setup your inventory and configure it with the ISIM hosts in your environment. Look in the examples directory for an example of how this should look. You will need to modify some of the variables in the inventory to match your environment. Key ones to watch out for are ``app_port``, ``root_dn``, ``username``, and ``password``.
 . If you have multiple versions of Python installed, make sure you specify that Ansible should use the one that you installed the Python packages for. You can do this by adding an attribute in your inventory that applies to all hosts. For example:
 
 [source,yaml]
 ----
 ansible_python_interpreter: /Library/Frameworks/Python.framework/Versions/3.6/bin/python3.6
+----
+
+[start=7]
+. Copy the contents of the roles directory into wherever you store Ansible roles. If you are using the example playbooks, you don't need to move the roles as the included ansible.cfg file is already pointing to the roles directory. If you do move them, ensure you update your ansible.cfg file to point to where your roles are stored. For example:
+----
+[defaults]
+roles_path = ~/isim-ansible/roles/
 ----
 
 [start=8]

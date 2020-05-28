@@ -89,6 +89,7 @@ celerybeat-schedule
 .ropeproject
 
 # Pycharm
+.idea
 */.idea
 
 # DS
